@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <link rel="manifest" href="manifest.json">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GymTracker Ultimate</title>
+    
+    <link rel="icon" type="image/png" href="assets/icon.png">
+    <link rel="apple-touch-icon" href="assets/icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    
+    <link rel="stylesheet" href="style.css">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: { colors: { slate: { 850: '#1e293b', 950: '#020617' } } } }
+        }
+    </script>
+</head>
+<body class="pb-40 text-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-slate-100 selection:bg-emerald-200 transition-colors duration-300">
+
+    <header class="fixed top-0 left-0 right-0 z-50 glass transition-all duration-300">
+        
+        <div class="max-w-2xl mx-auto px-4 py-3 flex justify-between items-start relative">
+            
+            <div class="flex flex-col justify-center mt-1 gap-1">
+                <div class="flex flex-col justify-center mt-1 gap-1">
+                    <div id="user-greeting" class="transition-all duration-300">
+                        </div>
+                </div>
+            </div>
+            
+            <div class="flex flex-col items-end gap-2">
+                <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md" id="current-date"></div>
+
+                <div class="flex items-center gap-2.5">
+                    <button onclick="toggleTheme()" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-yellow-400 flex items-center justify-center transition-colors">
+                        <span id="theme-icon">☀️</span>
+                    </button>
+                    <button onclick="openSocialModal()" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-emerald-400 flex items-center justify-center transition-colors">
+                        👥
+                    </button>
+                    <button onclick="handleLogout()" class="w-8 h-8 rounded-full bg-red-50 dark:bg-red-900/20 text-red-500 flex items-center justify-center transition-colors hover:bg-red-100">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="pb-2 max-w-2xl mx-auto flex items-center px-4 mt-1">
+            <div class="flex-1 flex space-x-3 overflow-x-auto no-scrollbar" id="tab-container">
+                </div>
+            <button onclick="openBuilder()" class="ml-2 flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-colors text-lg shadow-sm">+</button>
+        </div>
+        <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-800">
+            <div id="progress-bar" class="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 w-0 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+        </div>
+    </header>
+    <div id="empty-state" class="hidden min-h-[90vh] flex flex-col items-center justify-center p-6 text-center fade-in">
+        <div class="text-6xl mb-4">👋</div>
+        <h2 class="text-2xl font-black text-slate-800 dark:text-white mb-2">Bienvenue !</h2>
+        <p class="text-slate-500 dark:text-slate-400 mb-8 max-w-xs">Ton espace est vide. Comment veux-tu commencer ton aventure ?</p>
+        
+        <div class="w-full max-w-sm space-y-4">
+            <button onclick="openGeneratorModal()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white p-5 rounded-2xl shadow-lg shadow-emerald-500/30 flex items-center gap-4 transition-transform active:scale-95 text-left group">
+                <span class="text-3xl bg-white/20 p-2 rounded-xl">🔮</span>
+                <div>
+                    <div class="font-bold text-lg">Générer un programme</div>
+                    <div class="text-xs text-white/80 font-medium">Réponds à 2 questions, on s'occupe de tout.</div>
+                </div>
+            </button>
+
+            <button onclick="openBuilder()" class="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-800 dark:text-white p-5 rounded-2xl shadow-sm flex items-center gap-4 transition-transform active:scale-95 text-left">
+                <span class="text-3xl bg-slate-100 dark:bg-slate-700 p-2 rounded-xl">🎨</span>
+                <div>
+                    <div class="font-bold text-lg">Créer manuellement</div>
+                    <div class="text-xs text-slate-400 font-medium">Choisis tes exercices un par un.</div>
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <main class="p-5 pt-36 max-w-2xl mx-auto min-h-screen" id="main-container">
+        </main>
+
+    <div class="fixed bottom-6 right-5 z-40 flex flex-col items-end gap-3">
+        <div id="timer-display" class="hidden bg-slate-900 dark:bg-slate-800 text-white px-5 py-3 rounded-2xl shadow-2xl mb-2 flex items-center gap-4 border border-slate-700 fade-in">
+            <div class="text-3xl font-mono font-bold tracking-wider" id="chrono">00:00</div>
+            <div class="flex gap-2">
+                <button onclick="resetTimer()" class="p-2 rounded-full bg-slate-700 hover:bg-slate-600 text-xs">↺</button>
+                <button onclick="toggleTimer()" class="p-2 rounded-full bg-red-500 hover:bg-red-600 text-xs">✕</button>
+            </div>
+        </div>
+        <button onclick="toggleTimer()" id="timer-btn" class="w-14 h-14 rounded-full bg-slate-800 dark:bg-emerald-600 text-white shadow-xl flex items-center justify-center hover:scale-110 transition-transform active:scale-95 border-2 border-slate-700 dark:border-emerald-500">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        </button>
+    </div>
+
+    <div id="toast" class="fixed top-28 left-1/2 transform -translate-x-1/2 bg-slate-900/95 dark:bg-white/90 backdrop-blur text-white dark:text-slate-900 px-6 py-3 rounded-full shadow-2xl text-sm font-bold opacity-0 transition-all duration-300 pointer-events-none translate-y-4 z-[150] flex items-center gap-3 border border-white/10 w-max max-w-[90%] text-center">
+        <span id="toast-msg"></span>
+    </div>
+        <span id="toast-msg"></span>
+    </div>
+    <div id="auth-modal" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/95 backdrop-blur-sm hidden fade-in transition-all">
+        <div class="bg-white dark:bg-slate-900 p-8 rounded-[2rem] w-[85%] max-w-sm text-center border border-white/20 shadow-2xl relative overflow-hidden transition-all duration-300">
+            
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
+            
+            <div class="text-4xl mb-4" id="auth-icon">🔒</div>
+            <h2 class="text-2xl font-black text-slate-800 dark:text-white mb-2" id="auth-title">Connexion</h2>
+            <p class="text-slate-500 dark:text-slate-400 text-xs mb-6 font-medium" id="auth-subtitle">Accède à ton historique sauvegardé.</p>
+            
+            <div class="mb-6">
+                <button onclick="handleSocialLogin('google')" class="w-full flex items-center justify-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-xl transition-all shadow-sm">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.11c-.22-.66-.35-1.36-.35-2.11s.13-1.45.35-2.11V7.05H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.95l2.84-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.05l3.66 2.84c.87-2.6 3.3-4.51 6.16-4.51z" fill="#EA4335"/></svg>
+                    Continuer avec Google
+                </button>
+            </div>
+    
+            <div class="relative flex py-2 items-center mb-4">
+                <div class="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+                <span class="flex-shrink-0 mx-4 text-xs text-slate-400 font-bold uppercase">Ou avec email</span>
+                <div class="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+            </div>
+    
+            <div class="space-y-3">
+                
+                <div id="register-identity" class="hidden grid grid-cols-2 gap-3 overflow-hidden transition-all duration-300">
+                    <input type="text" id="first-name" class="w-full bg-slate-100 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500 rounded-xl p-3 text-center font-bold text-sm outline-none dark:text-white placeholder-slate-400" placeholder="Prénom">
+                    <input type="text" id="last-name" class="w-full bg-slate-100 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500 rounded-xl p-3 text-center font-bold text-sm outline-none dark:text-white placeholder-slate-400" placeholder="Nom">
+                </div>
+    
+                <input type="email" id="email" class="w-full bg-slate-100 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500 rounded-xl p-3 text-center font-bold text-sm outline-none dark:text-white transition-all placeholder-slate-400" placeholder="Email">
+                <input type="password" id="password" class="w-full bg-slate-100 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500 rounded-xl p-3 text-center font-bold text-sm outline-none dark:text-white transition-all placeholder-slate-400" placeholder="Mot de passe">
+                
+                <div id="register-confirm" class="hidden overflow-hidden transition-all duration-300">
+                     <input type="password" id="confirm-password" class="w-full bg-slate-100 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500 rounded-xl p-3 text-center font-bold text-sm outline-none dark:text-white transition-all placeholder-slate-400" placeholder="Confirmer mot de passe">
+                </div>
+    
+            </div>
+    
+            <div class="mt-6">
+                <button id="btn-login" onclick="handleLogin()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg transition-transform active:scale-95 text-xs uppercase">Se connecter</button>
+                <button id="btn-signup" onclick="handleSignUp()" class="hidden w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-lg transition-transform active:scale-95 text-xs uppercase">Créer mon compte</button>
+            </div>
+    
+            <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <p class="text-xs text-slate-400"><span id="toggle-text">Pas encore de compte ?</span><button onclick="toggleAuthMode()" class="text-emerald-500 font-bold hover:underline ml-1" id="toggle-btn">S'inscrire</button></p>
+            </div>
+            <p id="auth-error" class="text-red-500 text-xs font-bold mt-4 hidden bg-red-50 dark:bg-red-900/20 p-2 rounded-lg"></p>
+        </div>
+    </div>
+
+    <div id="builder-modal" class="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-slate-900/95 backdrop-blur-sm hidden fade-in">
+        <div class="bg-white dark:bg-slate-900 w-full sm:w-[90%] max-w-lg h-[90vh] sm:h-auto sm:max-h-[85vh] sm:rounded-[2rem] rounded-t-[2rem] p-6 flex flex-col relative shadow-2xl border border-white/10">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2"><span class="text-2xl">🛠️</span> Créer Séance</h2>
+                <button onclick="document.getElementById('builder-modal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center">✕</button>
+            </div>
+            <div class="mb-4">
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nom du programme</label>
+                <input type="text" id="builder-name" class="w-full bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500 rounded-xl p-3 font-bold text-slate-800 dark:text-white outline-none mt-1" placeholder="Ex: Dos & Biceps">
+            </div>
+            <div class="mb-4 flex gap-2">
+                <div class="relative flex-1">
+                    <span class="absolute left-3 top-3 text-slate-400">🔍</span>
+                    <input type="text" id="builder-search" oninput="filterBuilderList()" class="w-full bg-slate-100 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500 rounded-xl py-2.5 pl-10 pr-4 font-bold text-sm text-slate-800 dark:text-white outline-none transition-all placeholder-slate-400" placeholder="Exercice...">
+                </div>
+                
+                <select id="builder-category" onchange="filterBuilderList()" class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-white font-bold text-xs rounded-xl px-3 outline-none border-2 border-transparent focus:border-emerald-500 appearance-none">
+                    <option value="ALL">Tout</option>
+                    <option value="Pectoraux">Pecs</option>
+                    <option value="Dos">Dos</option>
+                    <option value="Jambes">Jambes</option>
+                    <option value="Épaules">Épaules</option>
+                    <option value="Bras">Bras</option>
+                    <option value="Abdos/Cardio">Abdos</option>
+                </select>
+            </div>
+            <div class="flex-1 overflow-y-auto no-scrollbar pr-1" id="builder-list">
+                <div class="text-center py-10 text-slate-400 animate-pulse">Chargement de la bibliothèque...</div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                <div class="text-xs text-slate-400"><span id="builder-count" class="font-bold text-emerald-500 text-lg">0</span> exos sélectionnés</div>
+                <button onclick="saveNewProgram()" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all text-xs uppercase tracking-widest">Sauvegarder</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="manager-modal" class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/95 backdrop-blur-sm hidden fade-in">
+        <div class="bg-white dark:bg-slate-900 w-[90%] max-w-md rounded-[2rem] p-6 shadow-2xl border border-white/10 relative max-h-[85vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-black text-slate-800 dark:text-white">Édition</h2>
+                <button onclick="document.getElementById('manager-modal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center">✕</button>
+            </div>
+            <div class="mb-4">
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nom du programme</label>
+                <input type="text" id="manager-name" class="w-full bg-slate-50 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500 rounded-xl p-3 font-bold text-slate-800 dark:text-white outline-none mt-1">
+                <input type="hidden" id="manager-original-name">
+            </div>
+            <div class="flex-1 overflow-y-auto no-scrollbar space-y-3 pr-1" id="manager-list">
+                </div>
+            <div class="mt-4 text-center">
+                <button onclick="openExerciseSelector()" class="inline-flex items-center gap-2 text-xs font-bold text-emerald-500 hover:text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-full transition-colors border border-emerald-100 dark:border-emerald-900/50">
+                    <span>➕</span> Ajouter un exercice
+                </button>
+            </div>
+            <div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-3">
+                <button onclick="saveManagerChanges()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all text-xs uppercase tracking-widest">💾 Enregistrer les modifications</button>
+                <button onclick="deleteCustomProgram()" class="w-full text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 font-bold py-3 rounded-xl transition-colors text-xs uppercase tracking-widest">🗑️ Supprimer ce programme</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="selector-modal" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/95 backdrop-blur-sm hidden fade-in">
+        <div class="bg-white dark:bg-slate-900 w-[90%] max-w-sm rounded-2xl p-4 shadow-2xl border border-white/10 flex flex-col max-h-[70vh]">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-800 dark:text-white">Ajouter un exercice</h3>
+                <button onclick="document.getElementById('selector-modal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center">✕</button>
+            </div>
+            <div class="mb-3 relative">
+                <span class="absolute left-3 top-2.5 text-slate-400 text-xs">🔍</span>
+                <input type="text" id="selector-search" oninput="filterSelectorList()" class="w-full bg-slate-100 dark:bg-slate-800 border border-transparent focus:border-emerald-500 rounded-lg py-2 pl-9 pr-4 text-xs font-bold text-slate-800 dark:text-white outline-none" placeholder="Chercher...">
+            </div>
+            <div class="flex-1 overflow-y-auto no-scrollbar space-y-2" id="selector-list">
+                </div>
+        </div>
+    </div>
+
+    <div id="congrats-modal" class="fixed inset-0 z-[70] flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-500">
+        <div class="bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl p-8 rounded-[2rem] shadow-2xl border-4 border-emerald-400 transform scale-50 transition-transform duration-500" id="congrats-content">
+            <div class="text-6xl text-center mb-4 animate-bounce">🔥</div>
+            <h2 class="text-3xl font-black text-slate-800 dark:text-white text-center italic tracking-tighter leading-none">SÉANCE <br><span class="text-emerald-500">TERMINÉE !</span></h2>
+            <p class="text-center text-xs font-bold text-slate-400 mt-4 uppercase tracking-widest">Tu es une machine.</p>
+        </div>
+    </div>
+<div id="generator-modal" class="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/95 backdrop-blur-sm hidden fade-in">
+        <div class="bg-white dark:bg-slate-900 w-[90%] max-w-md rounded-[2rem] p-8 shadow-2xl border border-white/10 text-center relative max-h-[85vh] overflow-y-auto no-scrollbar">
+            
+            <button onclick="document.getElementById('generator-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-white">✕</button>
+
+            <div class="text-4xl mb-2">🧙‍♂️</div>
+            <h2 class="text-xl font-black text-slate-800 dark:text-white mb-6">Créateur Intelligent</h2>
+
+            <div id="gen-step-1" class="space-y-3">
+                <p class="text-sm text-slate-500 mb-4 font-bold uppercase tracking-wide">Jours par semaine ?</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="selectFrequency(2)" class="bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500 hover:text-white text-slate-700 dark:text-slate-200 font-bold py-4 rounded-xl transition-all">2 Jours</button>
+                    <button onclick="selectFrequency(3)" class="bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500 hover:text-white text-slate-700 dark:text-slate-200 font-bold py-4 rounded-xl transition-all">3 Jours</button>
+                    <button onclick="selectFrequency(4)" class="bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500 hover:text-white text-slate-700 dark:text-slate-200 font-bold py-4 rounded-xl transition-all">4 Jours</button>
+                    <button onclick="selectFrequency(5)" class="bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500 hover:text-white text-slate-700 dark:text-slate-200 font-bold py-4 rounded-xl transition-all">5 Jours</button>
+                    <button onclick="selectFrequency(6)" class="col-span-2 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500 hover:text-white text-slate-700 dark:text-slate-200 font-bold py-4 rounded-xl transition-all">6 Jours</button>
+                </div>
+            </div>
+
+            <div id="gen-step-2" class="hidden space-y-3">
+                <p class="text-sm text-slate-500 mb-4 font-bold uppercase tracking-wide">Ton objectif ?</p>
+                <button onclick="selectGoal('FORCE')" class="w-full bg-slate-100 dark:bg-slate-800 hover:bg-red-500 hover:text-white text-slate-700 dark:text-slate-200 font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2"><span>🔥</span> Force (3-5 reps)</button>
+                <button onclick="selectGoal('HYPERTROPHIE')" class="w-full bg-slate-100 dark:bg-slate-800 hover:bg-blue-500 hover:text-white text-slate-700 dark:text-slate-200 font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2"><span>💪</span> Volume (8-12 reps)</button>
+                <button onclick="selectGoal('ENDURANCE')" class="w-full bg-slate-100 dark:bg-slate-800 hover:bg-yellow-500 hover:text-white text-slate-700 dark:text-slate-200 font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2"><span>🏃</span> Endurance (15+ reps)</button>
+            </div>
+
+            <div id="gen-step-3" class="hidden text-left bg-slate-50 dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700">
+                <div class="mb-4">
+                    <h3 class="font-black text-lg text-slate-800 dark:text-white leading-tight" id="gen-summary-title">...</h3>
+                    <p class="text-xs text-emerald-500 font-bold uppercase tracking-wide mt-1" id="gen-summary-desc">...</p>
+                </div>
+                <div class="h-1 w-full bg-slate-200 dark:bg-slate-700 rounded-full mb-4"></div>
+                <ul class="mb-6 space-y-2 max-h-40 overflow-y-auto no-scrollbar" id="gen-days-list"></ul>
+                <button id="btn-generate-confirm" onclick="confirmGeneration()" class="w-full bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 transition-transform active:scale-95">C'est parti !</button>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="js/main.js"></script>
+    
+    <input type="file" id="file-input" class="hidden" accept=".json">
+
+    <div id="wizard-modal" class="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/95 backdrop-blur-sm hidden fade-in">
+        <div class="bg-white dark:bg-slate-900 w-[90%] max-w-md rounded-[2rem] p-8 shadow-2xl border border-white/10 relative">
+            <button onclick="document.getElementById('wizard-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center">✕</button>
+            
+            <div class="text-center mb-8">
+                <span class="text-4xl">🔮</span>
+                <h2 class="text-xl font-black text-slate-800 dark:text-white mt-2">Le Coach Virtuel</h2>
+            </div>
+
+            <div id="wizard-step-1">
+                <p class="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-4 text-center">Jours par semaine ?</p>
+                
+                <div class="grid grid-cols-3 gap-3">
+                    <button onclick="selectFrequency(1)" class="wiz-freq bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-500 p-4 rounded-xl font-black text-xl transition-all border-2 border-transparent focus:border-emerald-500">1</button>
+                    <button onclick="selectFrequency(2)" class="wiz-freq bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-500 p-4 rounded-xl font-black text-xl transition-all border-2 border-transparent focus:border-emerald-500">2</button>
+                    <button onclick="selectFrequency(3)" class="wiz-freq bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-500 p-4 rounded-xl font-black text-xl transition-all border-2 border-transparent focus:border-emerald-500">3</button>
+                    <button onclick="selectFrequency(4)" class="wiz-freq bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-500 p-4 rounded-xl font-black text-xl transition-all border-2 border-transparent focus:border-emerald-500">4</button>
+                    <button onclick="selectFrequency(5)" class="wiz-freq bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-500 p-4 rounded-xl font-black text-xl transition-all border-2 border-transparent focus:border-emerald-500">5</button>
+                    <button onclick="selectFrequency(6)" class="wiz-freq bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-500 p-4 rounded-xl font-black text-xl transition-all border-2 border-transparent focus:border-emerald-500">6</button>
+                </div>
+            </div>
+
+            <div id="wizard-step-2" class="hidden">
+                <p class="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-4 text-center">Ton objectif ?</p>
+                <div class="space-y-3">
+                    <button onclick="generateWizard('STRENGTH')" class="w-full bg-slate-100 dark:bg-slate-800 p-4 rounded-xl flex items-center gap-4 hover:ring-2 hover:ring-emerald-500 transition-all text-left">
+                        <span class="text-2xl">🦍</span>
+                        <div>
+                            <div class="font-bold text-slate-800 dark:text-white">Force</div>
+                            <div class="text-xs text-slate-400">Séries courtes (5x5), charges lourdes.</div>
+                        </div>
+                    </button>
+                    <button onclick="generateWizard('HYPERTROPHY')" class="w-full bg-slate-100 dark:bg-slate-800 p-4 rounded-xl flex items-center gap-4 hover:ring-2 hover:ring-emerald-500 transition-all text-left">
+                        <span class="text-2xl">💪</span>
+                        <div>
+                            <div class="font-bold text-slate-800 dark:text-white">Volume</div>
+                            <div class="text-xs text-slate-400">Classique (3x10-12), prise de muscle.</div>
+                        </div>
+                    </button>
+                    <button onclick="generateWizard('ENDURANCE')" class="w-full bg-slate-100 dark:bg-slate-800 p-4 rounded-xl flex items-center gap-4 hover:ring-2 hover:ring-emerald-500 transition-all text-left">
+                        <span class="text-2xl">🏃</span>
+                        <div>
+                            <div class="font-bold text-slate-800 dark:text-white">Endurance</div>
+                            <div class="text-xs text-slate-400">Séries longues (15+), cardio.</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="social-modal" class="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/95 backdrop-blur-sm hidden fade-in">
+        <div class="bg-white dark:bg-slate-900 w-[90%] max-w-md h-[80vh] rounded-[2rem] p-6 flex flex-col shadow-2xl border border-white/10 relative">
+            
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-black text-slate-800 dark:text-white">Communauté</h2>
+                <button onclick="document.getElementById('social-modal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition-colors">✕</button>
+            </div>
+    
+            <div class="mb-4 relative">
+                <span class="absolute left-3 top-3 text-slate-400">🔍</span>
+                <input type="text" id="social-search" oninput="handleUserSearch()" class="w-full bg-slate-100 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500 rounded-xl py-2.5 pl-10 pr-4 font-bold text-sm dark:text-white outline-none transition-all placeholder-slate-400" placeholder="Trouver un ami...">
+                
+                <div id="search-results" class="absolute top-12 left-0 right-0 bg-white dark:bg-slate-800 rounded-xl shadow-xl z-10 border border-slate-100 dark:border-slate-700 hidden max-h-40 overflow-y-auto">
+                    </div>
+            </div>
+    
+            <div class="flex mb-4 border-b border-slate-100 dark:border-slate-800">
+                <button id="tab-btn-feed" onclick="switchSocialTab('FEED')" class="text-sm font-bold text-emerald-500 border-b-2 border-emerald-500 pb-2 w-1/2 text-center transition-colors">
+                    Activité
+                </button>
+                <button id="tab-btn-friends" onclick="switchSocialTab('FRIENDS')" class="text-sm font-bold text-slate-400 pb-2 w-1/2 text-center hover:text-slate-600 transition-colors">
+                    Mes Amis
+                </button>
+            </div>
+    
+            <div class="flex-1 overflow-y-auto no-scrollbar space-y-3" id="social-list">
+                <div class="text-center text-slate-400 text-xs mt-10">Chargement...</div>
+            </div>
+        </div>
+    </div>
+    <div id="feed-details-modal" class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/95 backdrop-blur-sm hidden fade-in">
+        <div class="bg-white dark:bg-slate-900 w-[90%] max-w-md max-h-[85vh] rounded-[2rem] p-6 flex flex-col shadow-2xl border border-white/10 relative">
+            
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-xl font-black text-slate-800 dark:text-white" id="feed-detail-title">Détails</h2>
+                    <p class="text-xs text-slate-400" id="feed-detail-subtitle">Séance de ...</p>
+                </div>
+                <button onclick="document.getElementById('feed-details-modal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition-colors">✕</button>
+            </div>
+    
+            <div class="flex-1 overflow-y-auto no-scrollbar space-y-3 pr-1" id="feed-detail-list">
+                </div>
+    
+            <div class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 text-center">
+                <button onclick="document.getElementById('feed-details-modal').classList.add('hidden')" class="text-sm font-bold text-slate-400 hover:text-white transition-colors">Fermer</button>
+            </div>
+        </div>
+    </div>
+    <div id="confirm-modal" class="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/95 backdrop-blur-sm hidden fade-in">
+        <div class="bg-white dark:bg-slate-900 w-[85%] max-w-sm rounded-2xl p-6 shadow-2xl border border-white/10 text-center transform scale-100 transition-all">
+            <div class="text-4xl mb-4" id="confirm-icon">🤔</div>
+            <h3 class="text-lg font-black text-slate-800 dark:text-white mb-2" id="confirm-title">Es-tu sûr ?</h3>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-6" id="confirm-text">Cette action est irréversible.</p>
+            
+            <div class="grid grid-cols-2 gap-3">
+                <button id="btn-confirm-no" class="w-full bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold py-3 rounded-xl hover:bg-slate-200 transition-colors text-xs uppercase">Annuler</button>
+                <button id="btn-confirm-yes" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl hover:bg-emerald-600 transition-colors text-xs uppercase shadow-lg shadow-emerald-500/30">Confirmer</button>
+            </div>
+        </div>
+    </div>
+    <div id="profile-modal" class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/95 backdrop-blur-sm hidden fade-in">
+        <div class="bg-white dark:bg-slate-900 w-[85%] max-w-sm rounded-[2rem] p-6 flex flex-col items-center shadow-2xl border border-white/10 relative">
+            
+            <button onclick="document.getElementById('profile-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition-colors">✕</button>
+    
+            <h2 class="text-xl font-black text-slate-800 dark:text-white mb-6">Mon Profil</h2>
+    
+            <div class="relative group cursor-pointer" onclick="document.getElementById('avatar-upload').click()">
+                <div id="profile-preview" class="w-32 h-32 rounded-full bg-slate-200 dark:bg-slate-800 border-4 border-white dark:border-slate-700 overflow-hidden flex items-center justify-center shadow-xl">
+                    <span class="text-4xl">📷</span>
+                </div>
+                
+                <div class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span class="text-white text-xs font-bold uppercase">Modifier</span>
+                </div>
+    
+                <div id="avatar-loading" class="absolute inset-0 bg-white/80 dark:bg-slate-900/80 rounded-full flex items-center justify-center hidden">
+                    <div class="animate-spin text-2xl">⏳</div>
+                </div>
+            </div>
+    
+            <input type="file" id="avatar-upload" accept="image/*" class="hidden" onchange="uploadAvatar(this)">
+    
+            <p class="text-xs text-slate-400 mt-4 text-center">Clique sur le cercle pour<br>changer ta photo.</p>
+    
+            <div class="mt-6 w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-xl text-center">
+                <h3 id="profile-name" class="font-bold text-slate-800 dark:text-white text-lg">...</h3>
+                <p id="profile-email" class="text-xs text-slate-400">...</p>
+            </div>
+        </div>
+    </div>
+    <div id="generator-modal" class="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/95 backdrop-blur-sm hidden fade-in">
+        <div class="bg-white dark:bg-slate-900 w-[90%] max-w-md rounded-[2rem] p-8 shadow-2xl border border-white/10 text-center relative max-h-[85vh] overflow-y-auto no-scrollbar">
+            
+            <button onclick="document.getElementById('generator-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-white">✕</button>
+    
+            <div class="text-4xl mb-2">🧙‍♂️</div>
+            <h2 class="text-xl font-black text-slate-800 dark:text-white mb-6">Créateur Intelligent</h2>
+    
+            <div id="gen-step-1" class="space-y-3">
+                <p class="text-sm text-slate-500 mb-4 font-bold uppercase tracking-wide">Jours par semaine ?</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="selectFrequency(2)" class="bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500 hover:text-white text-slate-700 dark:text-slate-200 font-bold py-4 rounded-xl transition-all">2 Jours</button>
+                    <button onclick="selectFrequency(3)" class="bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500 hover:text-white text-slate-700 dark:text-slate-200 font-bold py-4 rounded-xl transition-all">3 Jours</button>
+                    <button onclick="selectFrequency(4)" class="bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500 hover:text-white text-slate-700 dark:text-slate-200 font-bold py-4 rounded-xl transition-all">4 Jours</button>
+                    <button onclick="selectFrequency(5)" class="bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500 hover:text-white text-slate-700 dark:text-slate-200 font-bold py-4 rounded-xl transition-all">5 Jours</button>
+                    <button onclick="selectFrequency(6)" class="col-span-2 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-500 hover:text-white text-slate-700 dark:text-slate-200 font-bold py-4 rounded-xl transition-all">6 Jours (Machine)</button>
+                </div>
+            </div>
+    
+            <div id="gen-step-2" class="hidden space-y-3">
+                <p class="text-sm text-slate-500 mb-4 font-bold uppercase tracking-wide">Ton objectif ?</p>
+                <button onclick="selectGoal('FORCE')" class="w-full bg-slate-100 dark:bg-slate-800 hover:bg-red-500 hover:text-white text-slate-700 dark:text-slate-200 font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2">
+                    <span>🔥</span> Force (3-5 reps)
+                </button>
+                <button onclick="selectGoal('HYPERTROPHIE')" class="w-full bg-slate-100 dark:bg-slate-800 hover:bg-blue-500 hover:text-white text-slate-700 dark:text-slate-200 font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2">
+                    <span>💪</span> Volume (8-12 reps)
+                </button>
+                <button onclick="selectGoal('ENDURANCE')" class="w-full bg-slate-100 dark:bg-slate-800 hover:bg-yellow-500 hover:text-white text-slate-700 dark:text-slate-200 font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2">
+                    <span>🏃</span> Endurance (15+ reps)
+                </button>
+            </div>
+    
+            <div id="gen-step-3" class="hidden text-left bg-slate-50 dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700">
+                <div class="mb-4">
+                    <h3 class="font-black text-lg text-slate-800 dark:text-white leading-tight" id="gen-summary-title">...</h3>
+                    <p class="text-xs text-emerald-500 font-bold uppercase tracking-wide mt-1" id="gen-summary-desc">...</p>
+                </div>
+                
+                <div class="h-1 w-full bg-slate-200 dark:bg-slate-700 rounded-full mb-4"></div>
+    
+                <ul class="mb-6 space-y-2 max-h-40 overflow-y-auto no-scrollbar" id="gen-days-list"></ul>
+                
+                <button id="btn-generate-confirm" onclick="confirmGeneration()" class="w-full bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 transition-transform active:scale-95">
+                    C'est parti !
+                </button>
+            </div>
+    
+        </div>
+    </div>
+</body>
+</html>
