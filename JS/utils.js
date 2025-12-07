@@ -13,21 +13,37 @@ export function calculate1RM(weight, reps) {
 }
 
 // --- HELPER : Trouver la dernière perf ---
+// --- HELPER : Trouver la dernière perf ---
 export function getLastPerf(exerciseId) {
     const history = getHistory();
     const editingId = getEditSessionId();
     
-    // On parcourt l'historique à l'envers
+    // On parcourt l'historique à l'envers (du plus récent au plus vieux)
     for (let i = history.length - 1; i >= 0; i--) {
         const session = history[i];
+        
+        // On ignore la séance qu'on est en train d'éditer (pour ne pas se comparer à soi-même)
         if (editingId && session.id === editingId) continue;
         
-        // Gestion compatibilité (Array direct ou propriété exercises)
+        // Sécurisation : on s'assure que exercises est bien un tableau
         const exercisesList = Array.isArray(session.exercises) ? session.exercises : [];
+        
+        // On cherche l'exercice dans cette séance
         const exerciseData = exercisesList.find(ex => ex.id === exerciseId);
         
-        if (exerciseData && (exerciseData.reps || exerciseData.weight)) {
-            return exerciseData;
+        if (exerciseData) {
+            // CAS 1 : Nouveau format (Tableau de séries)
+            if (exerciseData.series && exerciseData.series.length > 0) {
+                return exerciseData;
+            }
+            // CAS 2 : Ancien format (Compatibilité si tu as de vieilles données)
+            if (exerciseData.reps || exerciseData.weight) {
+                // On normalise pour que l'UI s'y retrouve
+                return { 
+                    ...exerciseData, 
+                    series: [{ reps: exerciseData.reps, weight: exerciseData.weight }] 
+                };
+            }
         }
     }
     return null;

@@ -85,71 +85,81 @@ export function renderTabs() {
 }
 // --- AFFICHAGE SÉANCE ---
 // --- AFFICHAGE SÉANCE (COMPLETE & CORRIGÉE) ---
+// --- AFFICHAGE SÉANCE (VERSION UNIFIÉE : TOUT EST MODIFIABLE) ---
 export function renderWorkout(day) {
     const container = document.getElementById('main-container');
-    if (!day) day = "PUSH";
+    
+    // Si pas de jour spécifié, on prend le premier disponible (sécurité)
+    if (!day) {
+        const keys = Object.keys(workouts);
+        day = keys.length > 0 ? keys[0] : null;
+    }
+    
+    // Si toujours rien (aucun programme), on arrête
+    if (!day) {
+        container.innerHTML = `<div class="text-center text-slate-400 mt-10">Aucun programme trouvé.</div>`;
+        return;
+    }
     
     const exercises = workouts[day];
     const activeData = getActiveSession();
     const isEditing = getEditSessionId();
 
-    // 1. BOUTON MODIFIER (Si programme perso)
-    const defaultPrograms = ["PUSH", "PULL", "LEGS", "FULL BODY"];
-    let configHtml = "";
-    if (!defaultPrograms.includes(day)) {
-        configHtml = `
-        <div class="flex justify-end mb-4">
-            <button onclick="openProgramManager('${day}')" class="text-xs font-bold text-slate-400 hover:text-emerald-500 flex items-center gap-1 transition-colors bg-white dark:bg-slate-800 px-3 py-1.5 rounded-full shadow-sm border border-slate-100 dark:border-slate-700">
-                <span>⚙️</span> Modifier le programme
-            </button>
-        </div>`;
-    }
+    // 1. BOUTON MODIFIER LE PROGRAMME (S'affiche TOUJOURS maintenant)
+    const configHtml = `
+    <div class="flex justify-end mb-4">
+        <button onclick="openProgramManager('${day}')" class="text-xs font-bold text-slate-400 hover:text-emerald-500 flex items-center gap-1 transition-colors bg-white dark:bg-slate-800 px-3 py-1.5 rounded-full shadow-sm border border-slate-100 dark:border-slate-700">
+            <span>⚙️</span> Modifier le programme
+        </button>
+    </div>`;
 
-    if (!exercises) {
-        container.innerHTML = `<div class="text-center text-slate-400 mt-10">Chargement...</div>`;
+    if (!exercises || exercises.length === 0) {
+        container.innerHTML = configHtml + `<div class="text-center text-slate-400 mt-10">Ce programme est vide. Ajoute des exercices !</div>`;
         return;
     }
 
     let html = exercises.map((ex, index) => {
         let seriesData = activeData[ex.id]?.series || [];
+        
+        // 2. INITIALISATION INTELLIGENTE DES SÉRIES
         const targetSets = parseInt(ex.sets) || 3;
+        
+        // Détection "Fantôme" (1 seule série vide alors qu'on en veut plus)
         const isGhostData = seriesData.length === 1 && 
-                                (seriesData[0].reps === "" || seriesData[0].reps === null) && 
-                                (seriesData[0].weight === "" || seriesData[0].weight === null) &&
-                                targetSets > 1;
+                            (seriesData[0].reps === "" || seriesData[0].reps === null) && 
+                            (seriesData[0].weight === "" || seriesData[0].weight === null) &&
+                            targetSets > 1;
 
-                                if (seriesData.length === 0 || isGhostData) {
-                
-                                    // On génère le bon nombre de lignes
-                                    seriesData = Array(targetSets).fill().map(() => ({ reps: "", weight: "" }));
-                                    
-                                    // SAUVEGARDE IMMÉDIATE
-                                    if (!activeData[ex.id]) activeData[ex.id] = {};
-                                    activeData[ex.id].series = seriesData;
-                                    activeData[ex.id].note = activeData[ex.id].note || "";
-                                    
-                                    saveActiveSession(activeData);
-                                }
+        // Si vide ou fantôme -> On génère les lignes
+        if (seriesData.length === 0 || isGhostData) {
+            seriesData = Array(targetSets).fill().map(() => ({ reps: "", weight: "" }));
+            
+            // Sauvegarde immédiate pour la logique
+            if (!activeData[ex.id]) activeData[ex.id] = {};
+            activeData[ex.id].series = seriesData;
+            activeData[ex.id].note = activeData[ex.id].note || "";
+            saveActiveSession(activeData);
+        }
 
         const savedNote = activeData[ex.id]?.note || "";
         const allSetsDone = seriesData.every(s => s.reps && s.reps.toString().trim() !== "" && s.weight && s.weight.toString().trim() !== "");
         const isDone = seriesData.length > 0 && allSetsDone;
 
-        // 2. RÉCUPÉRATION DERNIÈRE PERF (C'est ce qui manquait !)
-        // On vérifie si getLastPerf est bien importé en haut du fichier, sinon ça plantera pas mais ça sera vide.
+        // 3. RÉCUPÉRATION DERNIÈRE PERF
         let lastPerfText = "✨ Première séance";
         if (typeof getLastPerf === 'function') {
             const lastPerfData = getLastPerf(ex.id);
             if (lastPerfData && lastPerfData.series && lastPerfData.series.length > 0) {
-                // On cherche la meilleure série de la dernière fois
                 const bestSet = lastPerfData.series.find(s => s.reps && s.weight);
-                if (bestSet) {
-                    lastPerfText = `Dernier : ${bestSet.reps} x ${bestSet.weight}kg`;
-                }
+                if (bestSet) lastPerfText = `Dernier : ${bestSet.reps} x ${bestSet.weight}kg`;
             }
         }
+        const isRecord = lastPerfText.includes('Dernier');
+        const perfStyle = isRecord 
+            ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-md shadow-sm" 
+            : "text-slate-400";
 
-        // 3. CALCUL 1RM INITIAL (Pour l'affichage au chargement)
+        // 4. CALCUL 1RM INITIAL
         let best1RM = 0;
         seriesData.forEach(s => {
             const r = parseInt(s.reps);
@@ -160,13 +170,13 @@ export function renderWorkout(day) {
             }
         });
 
-        // 4. IMAGE (GIF)
+        // 5. IMAGE (GIF)
         const imgHtml = ex.img ? 
             `<div class="w-full h-56 bg-white rounded-xl overflow-hidden mb-5 border border-slate-100 dark:border-slate-700 relative group">
                 <img src="${ex.img}" alt="${ex.name}" class="w-full h-full object-contain mix-blend-multiply" onerror="this.style.display='none'">
              </div>` : '';
 
-        // 5. LIGNES D'INPUTS (Avec les classes js-reps / js-weight)
+        // 6. GÉNÉRATION DES LIGNES (INPUTS)
         let rowsHtml = seriesData.map((s, i) => {
             const isSetDone = s.reps && s.reps.toString().trim() !== "" && s.weight && s.weight.toString().trim() !== "";
             const circleColor = isSetDone ? "bg-emerald-500 text-white border-emerald-500" : "bg-slate-100 dark:bg-slate-700 text-slate-400 border-transparent";
@@ -189,6 +199,7 @@ export function renderWorkout(day) {
             </div>`;
         }).join('');
 
+        // 7. RENDU FINAL DE LA CARTE
         return `
         <div id="card-${ex.id}" class="bg-white dark:bg-slate-850 rounded-[2rem] shadow-lg p-5 mb-8 border border-slate-100 dark:border-slate-700 relative transition-all ${isDone ? 'ring-2 ring-emerald-400 ring-offset-2 dark:ring-offset-slate-900' : ''}">
             
@@ -197,11 +208,13 @@ export function renderWorkout(day) {
                     Obj : ${ex.sets} x ${ex.reps}
                 </div>
 
-                <h3 class="font-black text-xl text-slate-800 dark:text-white leading-tight w-[65%] mb-1">${ex.name}</h3>
+                <h3 class="font-black text-xl text-slate-800 dark:text-white leading-tight w-[65%] mb-2">${ex.name}</h3>
                 
-                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1">
-                    ${lastPerfText.includes('Dernier') ? '⏱️' : ''} ${lastPerfText}
-                </p>
+                <div class="flex items-center">
+                    <span class="text-[10px] font-bold uppercase tracking-widest ${perfStyle} inline-block">
+                        ${isRecord ? '⚡️' : '✨'} ${lastPerfText}
+                    </span>
+                </div>
             </div>
 
             ${imgHtml}

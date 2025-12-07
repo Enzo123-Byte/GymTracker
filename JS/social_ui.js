@@ -94,37 +94,62 @@ async function renderFeed() {
 }
 
 // --- OUVERTURE DÉTAILS ---
+// --- OUVERTURE DÉTAILS FEED (CORRIGÉE) ---
 export function openFeedDetails(index) {
     const post = feedCache[index];
     if (!post) return;
 
+    // Titres
     document.getElementById('feed-detail-title').innerText = post.program_name;
     const isMe = post.user_id === currentUser.id;
     const name = isMe ? "Vous" : `${post.first_name} ${post.last_name}`;
     document.getElementById('feed-detail-subtitle').innerText = `Séance réalisée par ${name}`;
 
     const list = document.getElementById('feed-detail-list');
+    
+    // On sécurise : si session_summary est vide ou null
     const exos = post.session_summary || [];
 
     if (exos.length === 0) {
-        list.innerHTML = `<p class="text-center text-slate-500 text-sm">Aucun détail disponible.</p>`;
+        list.innerHTML = `<p class="text-center text-slate-500 text-sm py-4">Aucun détail disponible.</p>`;
     } else {
-        list.innerHTML = exos.map(ex => `
-            <div class="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+        list.innerHTML = exos.map(ex => {
+            
+            // 👇 LOGIQUE DE DÉTECTION DU FORMAT (Nouveau vs Ancien)
+            let setCount = 0;
+            let detailsText = "";
+
+            // CAS 1 : NOUVEAU FORMAT (Tableau 'series')
+            if (ex.series && Array.isArray(ex.series)) {
+                setCount = ex.series.length;
+                // On crée une jolie liste : "10x60kg, 8x60kg..."
+                detailsText = ex.series
+                    .map(s => `<span class="bg-white dark:bg-slate-700 px-1.5 py-0.5 rounded border border-slate-100 dark:border-slate-600 text-slate-600 dark:text-slate-300">${s.reps}x${s.weight}kg</span>`)
+                    .join(' ');
+            } 
+            // CAS 2 : ANCIEN FORMAT (Fallback pour les vieux logs)
+            else {
+                setCount = ex.sets || '?';
+                detailsText = `<span class="text-slate-500">${ex.reps || '?'} reps</span>`;
+            }
+
+            return `
+            <div class="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
                 <div class="flex justify-between items-start mb-2">
-                    <h4 class="font-bold text-sm text-slate-800 dark:text-white w-[70%]">${ex.name}</h4>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold px-2 py-1 rounded">
-                        ${ex.sets} séries
-                    </span>
-                    <span class="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                        ${ex.reps} reps ${ex.weight ? `@ ${ex.weight}kg` : ''}
+                    <h4 class="font-bold text-sm text-slate-800 dark:text-white w-[80%]">${ex.name}</h4>
+                    <span class="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold px-2 py-1 rounded-lg uppercase tracking-wide">
+                        ${setCount} Séries
                     </span>
                 </div>
-                ${ex.feel ? `<p class="text-[10px] text-slate-400 mt-2 italic">"${ex.feel}"</p>` : ''}
+                
+                <div class="flex flex-wrap gap-2 text-xs font-bold font-mono mt-1">
+                    ${detailsText}
+                </div>
+
+                ${ex.note ? `<div class="mt-3 text-[10px] text-slate-400 italic border-l-2 border-slate-200 dark:border-slate-600 pl-2">"${ex.note}"</div>` : ''}
             </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     document.getElementById('feed-details-modal').classList.remove('hidden');
