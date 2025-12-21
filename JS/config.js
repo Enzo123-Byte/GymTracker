@@ -7,7 +7,6 @@ const PROD_CONFIG = {
     key: 'sb_publishable_z3zg6qDTotXZblxQ7ZePAw_8A55xtE_'
 };
 const activeConfig = PROD_CONFIG; 
-
 export const SUPABASE_URL = activeConfig.url;
 export const SUPABASE_KEY = activeConfig.key;
 

@@ -13,6 +13,7 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <link rel="stylesheet" href="style.css">
     
@@ -173,8 +174,18 @@
                 <div class="relative flex-1">
                     <span class="absolute left-3 top-3 text-slate-400">🔍</span>
                     <input type="text" id="builder-search" oninput="filterBuilderList()" class="w-full bg-slate-100 dark:bg-slate-800 border-2 border-transparent focus:border-emerald-500 rounded-xl py-2.5 pl-10 pr-4 font-bold text-sm text-slate-800 dark:text-white outline-none transition-all placeholder-slate-400" placeholder="Exercice...">
+                    
+                    <div id="vision-loading" class="absolute right-3 top-2.5 hidden">
+                        <div class="animate-spin h-5 w-5 border-2 border-emerald-500 rounded-full border-t-transparent"></div>
+                    </div>
                 </div>
                 
+                <button onclick="document.getElementById('vision-input').click()" class="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-emerald-500 hover:text-white p-3 rounded-xl transition-colors border-2 border-transparent active:scale-95">
+                    📷
+                </button>
+            
+                <input type="file" id="vision-input" class="hidden" accept="image/*" capture="environment" onchange="handleVisionSearch(this)">
+            
                 <select id="builder-category" onchange="filterBuilderList()" class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-white font-bold text-xs rounded-xl px-3 outline-none border-2 border-transparent focus:border-emerald-500 appearance-none">
                     <option value="ALL">Tout</option>
                     <option value="Pectoraux">Pecs</option>
@@ -503,6 +514,40 @@
             <button onclick="saveDateChange()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all text-xs uppercase tracking-widest">
                 Confirmer la date
             </button>
+        </div>
+    </div>
+    <div id="analytics-modal" class="fixed inset-0 z-[130] flex items-center justify-center bg-slate-900/95 backdrop-blur-sm hidden fade-in">
+        <div class="bg-white dark:bg-slate-900 w-[95%] max-w-lg rounded-[2rem] p-6 shadow-2xl border border-white/10 relative max-h-[90vh] overflow-y-auto no-scrollbar">
+            
+            <button onclick="closeAnalytics()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center">✕</button>
+    
+            <div class="mb-6">
+                <h2 class="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">
+                    📈 <span id="analytics-title">Analyse</span>
+                </h2>
+                <p class="text-xs text-slate-500" id="analytics-subtitle">Progression du 1RM Estimé</p>
+            </div>
+    
+            <div class="bg-slate-50 dark:bg-slate-800 rounded-2xl p-2 mb-6 border border-slate-100 dark:border-slate-700 h-64 relative">
+                <canvas id="progressChart"></canvas>
+            </div>
+    
+            <div id="analytics-diagnostic" class="mb-6 hidden">
+                <div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl p-4 flex items-start gap-3">
+                    <div class="text-2xl">⚠️</div>
+                    <div>
+                        <h4 class="font-bold text-orange-600 dark:text-orange-400 text-sm">Plateau Détecté</h4>
+                        <p class="text-xs text-slate-600 dark:text-slate-300 mt-1">Ta progression stagne sur les 5 dernières séances. C'est le moment de changer de stimulus !</p>
+                    </div>
+                </div>
+            </div>
+    
+            <div id="analytics-suggestions" class="hidden">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Alternatives Recommandées</h3>
+                <div id="suggestions-list" class="space-y-2">
+                    </div>
+            </div>
+    
         </div>
     </div>
 </body>

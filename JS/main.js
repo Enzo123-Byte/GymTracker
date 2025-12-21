@@ -6,6 +6,8 @@ import { toggleTimer, resetTimer } from './utils.js';
 import { openProfileModal, uploadAvatar } from './profile.js';
 import { openOnboarding, applyTemplate, closeOnboardingAndBuild } from './onboarding.js';
 import { openGeneratorModal, selectFrequency, confirmGeneration, selectGoal} from './generator.js';
+import { openAnalytics, closeAnalytics } from './analytics.js';
+import { handleVisionSearch } from './builder.js';
 
 // Imports du Builder
 import { 
@@ -56,6 +58,11 @@ window.editSession = editSession;
 window.cancelEdit = cancelEdit;
 window.openDateEditor = openDateEditor;
 window.saveDateChange = saveDateChange;
+
+window.openAnalytics = openAnalytics;
+window.closeAnalytics = closeAnalytics;
+
+window.handleVisionSearch = handleVisionSearch;
 
 // Timer
 window.toggleTimer = toggleTimer;

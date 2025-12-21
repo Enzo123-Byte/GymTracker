@@ -1,7 +1,7 @@
 import { supabase } from './supabase.js';
 import { currentUser } from './state.js';
 import { workouts } from './config.js';
-import { showToast, openConfirmModal } from './ui.js'; // Ajoute openConfirmModal
+import { showToast, openConfirmModal } from './ui.js';
 // --- VARIABLES LOCALES ---
 let libraryCache = []; // Cache pour ne pas recharger la DB à chaque clic
 let selectedExercises = new Set(); // Pour le Builder (Création)
@@ -303,4 +303,77 @@ export function addExerciseToManager(exId) {
     
     const list = document.getElementById('manager-list');
     list.scrollTop = list.scrollHeight;
+}
+
+export async function handleVisionSearch(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    // 1. UI : Afficher le chargement
+    const loader = document.getElementById('vision-loading');
+    const searchInput = document.getElementById('builder-search');
+    
+    loader.classList.remove('hidden');
+    searchInput.value = "Analyse en cours...";
+    searchInput.disabled = true;
+
+    try {
+        // 2. Conversion Image -> Base64
+        const base64Image = await convertToBase64(file);
+
+        // 3. Appel API OpenAI (GPT-4o-mini)
+        const exerciseName = await identifyExerciseWithAI(base64Image);
+
+        // 4. Résultat
+        if (exerciseName) {
+            searchInput.value = exerciseName.replace(/[".]/g, ''); // Nettoyage
+            showToast(`Trouvé : ${searchInput.value} 🎯`);
+            
+            // On déclenche le filtre existant
+            searchInput.disabled = false;
+            filterBuilderList(); 
+        } else {
+            throw new Error("Aucun exercice reconnu.");
+        }
+
+    } catch (error) {
+        console.error(error);
+        showToast("Erreur Vision : " + error.message);
+        searchInput.value = "";
+    } finally {
+        loader.classList.add('hidden');
+        searchInput.disabled = false;
+        input.value = ""; // Reset pour pouvoir reprendre la même photo
+    }
+}
+
+// Fonction Helper : Fichier -> Base64
+function convertToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
+}
+
+// js/builder.js (En bas)
+
+// Fonction Helper : Appel Sécurisé via Supabase Edge Function
+async function identifyExerciseWithAI(base64Image) {
+    console.log("Envoi de l'image à Supabase..."); // Petit log pour débugger
+
+    // On appelle la fonction "identify-exercise" qu'on a déployée
+    const { data, error } = await supabase.functions.invoke('identify-exercise', {
+        body: { base64Image: base64Image }
+    });
+
+    if (error) {
+        console.error("Erreur Edge Function:", error);
+        throw new Error("Erreur serveur lors de l'analyse.");
+    }
+    
+    // data contient la réponse JSON { exerciseName: "..." }
+    const result = data.exerciseName ? data.exerciseName.trim() : null;
+    return result === "Inconnu" ? null : result;
 }

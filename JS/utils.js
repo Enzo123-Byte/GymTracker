@@ -116,3 +116,28 @@ export function formatDateKey(isoDateString) {
     const d = new Date(isoDateString);
     return `${d.getDate()}/${d.getMonth()}/${d.getFullYear()}`;
 }
+
+// --- MATHS & STATS ---
+
+// Calcule la pente de régression linéaire (Trend)
+// Retourne la pente (m). Si m proche de 0 = Plateau. m > 0 = Progression.
+export function calculateTrendSlope(values) {
+    if (values.length < 2) return 0;
+
+    const n = values.length;
+    // On utilise l'index (0, 1, 2...) comme axe X pour simplifier le temps
+    let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+
+    for (let i = 0; i < n; i++) {
+        const x = i;
+        const y = values[i];
+        
+        sumX += x;
+        sumY += y;
+        sumXY += x * y;
+        sumXX += x * x;
+    }
+
+    const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+    return slope;
+}

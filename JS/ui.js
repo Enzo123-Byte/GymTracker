@@ -202,20 +202,24 @@ export function renderWorkout(day) {
         // 7. RENDU FINAL DE LA CARTE
         return `
         <div id="card-${ex.id}" class="bg-white dark:bg-slate-850 rounded-[2rem] shadow-lg p-5 mb-8 border border-slate-100 dark:border-slate-700 relative transition-all ${isDone ? 'ring-2 ring-emerald-400 ring-offset-2 dark:ring-offset-slate-900' : ''}">
-            
-            <div class="flex flex-col mb-4 relative">
-                <div class="absolute top-0 right-0 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700 px-2.5 py-2 rounded-md text-[10px] font-black uppercase tracking-wide shadow-sm">
-                    Obj : ${ex.sets} x ${ex.reps}
-                </div>
 
-                <h3 class="font-black text-xl text-slate-800 dark:text-white leading-tight w-[65%] mb-2">${ex.name}</h3>
-                
-                <div class="flex items-center">
-                    <span class="text-[10px] font-bold uppercase tracking-widest ${perfStyle} inline-block">
-                        ${isRecord ? '⚡️' : '✨'} ${lastPerfText}
-                    </span>
-                </div>
+        <div class="flex flex-col mb-4 relative">
+            <div class="absolute top-0 right-0 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700 px-2.5 py-2 rounded-md text-[10px] font-black uppercase tracking-wide shadow-sm">
+                Obj : ${ex.sets} x ${ex.reps}
+             </div>
+
+            <div class="w-[70%] mb-2" onclick="openAnalytics('${ex.id}', '${ex.name.replace(/'/g, "\\'")}')">
+                <h3 class="font-black text-xl text-slate-800 dark:text-white leading-tight cursor-pointer hover:text-emerald-500 transition-colors flex items-center gap-2">
+                    ${ex.name}
+                </h3>
             </div>
+    
+            <div class="flex items-center">
+                 <span class="text-[10px] font-bold uppercase tracking-widest ${perfStyle} inline-block">
+                    ${isRecord ? '⚡️' : '✨'} ${lastPerfText}
+                 </span>
+            </div>
+        </div>
 
             ${imgHtml}
 
@@ -420,12 +424,19 @@ function renderSessionCard(session) {
                     ? ex.series.map(s => `<span class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded text-[10px] font-bold">${s.reps}x${s.weight}</span>`).join(' ') 
                     : `${ex.sets}x${ex.reps} @ ${ex.weight}kg`;
                 
-                return `
-                <div class="flex flex-col gap-1 border-b border-slate-50 dark:border-slate-800 last:border-0 pb-2 last:pb-0">
-                    <span class="text-sm font-bold text-slate-700 dark:text-slate-200">${ex.name}</span>
-                    <div class="flex flex-wrap gap-1">${detailText}</div>
-                    ${ex.note ? `<div class="text-[10px] text-slate-400 italic">"${ex.note}"</div>` : ''}
-                </div>`;
+                    return `
+                    <div class="flex flex-col gap-1 border-b border-slate-50 dark:border-slate-800 last:border-0 pb-2 last:pb-0">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-bold text-slate-700 dark:text-slate-200">${ex.name}</span>
+                            
+                            <button onclick="openAnalytics('${ex.id}', '${ex.name.replace(/'/g, "\\'")}')" class="text-xs text-slate-300 hover:text-emerald-500 p-1 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                                📈
+                            </button>
+                        </div>
+                    
+                        <div class="flex flex-wrap gap-1">${detailText}</div>
+                        ${ex.note ? `<div class="text-[10px] text-slate-400 italic">"${ex.note}"</div>` : ''}
+                    </div>`;
             }).join('')}
         </div>
     </div>`;

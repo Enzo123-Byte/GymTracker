@@ -1,7 +1,7 @@
 import { getActiveSession, saveActiveSession, currentUser, getHistory, getEditSessionId, clearEditSessionId, setEditSessionId, setCurrentTab } from './state.js';
 import { workouts } from './config.js';
 import { supabase } from './supabase.js';
-import { calculate1RM, toggleTimer, resetTimer } from './utils.js';
+import { calculate1RM, toggleTimer, resetTimer} from './utils.js';
 import { renderHistory, renderWorkout, renderTabs, showToast, updateProgressBar, update1RMDisplay, openConfirmModal } from './ui.js';
 import { syncHistoryFromCloud } from './auth.js';
 
@@ -244,4 +244,52 @@ export async function saveDateChange() {
         await syncHistoryFromCloud();
         renderHistory();
     }
+}
+
+// Récupère l'historique 1RM d'un exercice spécifique
+export function getExerciseHistoryData(exerciseId) {
+    const history = getHistory(); // Vient de state.js
+    const dataPoints = [];
+
+    // On parcourt l'historique du plus ancien au plus récent (reverse pour le graph)
+    [...history].reverse().forEach(session => {
+        // On cherche si l'exercice est dans cette session
+        // Note: session.exercises peut être un tableau direct ou via 'session_data' selon ta version DB
+        const exercises = session.exercises || session.session_data || [];
+        
+        if (!Array.isArray(exercises)) return;
+
+        const exData = exercises.find(e => e.id === exerciseId);
+        
+        if (exData) {
+            // On calcule le MEILLEUR 1RM de la séance
+            let max1RM = 0;
+            
+            // Compatibilité ancien/nouveau format
+            const series = exData.series || (exData.reps ? [{reps: exData.reps, weight: exData.weight}] : []);
+
+            series.forEach(s => {
+                const r = parseFloat(s.reps);
+                const w = parseFloat(s.weight);
+                if (r > 0 && w > 0) {
+                    const rm = calculate1RM(w, r);
+                    if (rm > max1RM) max1RM = rm;
+                }
+            });
+
+            if (max1RM > 0) {
+                // On formate la date "DD/MM"
+                const dateObj = new Date(session.created_at);
+                const label = `${dateObj.getDate()}/${dateObj.getMonth() + 1}`;
+                
+                dataPoints.push({
+                    x: label,
+                    y: max1RM,
+                    fullDate: session.created_at
+                });
+            }
+        }
+    });
+
+    return dataPoints;
 }
