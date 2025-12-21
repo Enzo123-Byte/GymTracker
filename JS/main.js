@@ -1,6 +1,6 @@
 import { initTheme, toggleTheme, renderTabs, toggleDetails, toggleAuthMode, updateHeaderGreeting, renderWorkout, showToast, updateProgressBar } from './ui.js';
 import { initAuth, handleLogin, handleSignUp, handleLogout, handleSocialLogin } from './auth.js';
-import { switchTab, finishSession, deleteSession, editSession, cancelEdit,addSet,removeSet,updateSet,updateNote } from './logic.js';
+import { switchTab, finishSession, deleteSession, editSession, cancelEdit,addSet,removeSet,updateSet,updateNote,openDateEditor,saveDateChange } from './logic.js';
 import { openSocialModal, handleUserSearch, refreshSocialUI, addFriend, acceptRequest, openFeedDetails, switchSocialTab, removeFriend } from './social_ui.js';
 import { toggleTimer, resetTimer } from './utils.js';
 import { openProfileModal, uploadAvatar } from './profile.js';
@@ -46,14 +46,16 @@ window.handleLogout = handleLogout;
 
 // Logique Séance
 window.switchTab = switchTab;
-window.updateSet = updateSet;   // <--- NOUVEAU
-window.addSet = addSet;         // <--- NOUVEAU
-window.removeSet = removeSet;   // <--- NOUVEAU
+window.updateSet = updateSet;   
+window.addSet = addSet;         
+window.removeSet = removeSet;   
 window.updateNote = updateNote;
 window.finishSession = finishSession;
 window.deleteSession = deleteSession;
 window.editSession = editSession;
 window.cancelEdit = cancelEdit;
+window.openDateEditor = openDateEditor;
+window.saveDateChange = saveDateChange;
 
 // Timer
 window.toggleTimer = toggleTimer;

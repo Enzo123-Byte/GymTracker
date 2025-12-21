@@ -170,3 +170,78 @@ export function cancelEdit() {
     switchTab('HISTORIQUE');
     showToast("Annulé");
 }
+
+// --- VARIABLE TEMPORAIRE ---
+let sessionToEditDateId = null;
+
+// 1. Ouvrir la modale (Avec restriction MAX)
+export function openDateEditor(id, currentIsoDate) {
+    sessionToEditDateId = id;
+    const modal = document.getElementById('date-modal');
+    const input = document.getElementById('new-session-date');
+    
+    // Calcul de "Maintenant" au format YYYY-MM-DDTHH:MM pour l'attribut MAX
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    const maxDateString = now.toISOString().slice(0, 16);
+    
+    // Appliquer la limite au calendrier (grise les dates futures)
+    input.max = maxDateString;
+
+    // Pré-remplir avec la date de la séance
+    if (currentIsoDate) {
+        const dateObj = new Date(currentIsoDate);
+        dateObj.setMinutes(dateObj.getMinutes() - dateObj.getTimezoneOffset());
+        input.value = dateObj.toISOString().slice(0, 16);
+    } else {
+        // Par défaut : maintenant
+        input.value = maxDateString;
+    }
+    
+    modal.classList.remove('hidden');
+}
+
+// 2. Sauvegarder (Avec validation stricte)
+export async function saveDateChange() {
+    const input = document.getElementById('new-session-date');
+    const newDateVal = input.value; 
+
+    if (!newDateVal || !sessionToEditDateId) return;
+
+    const selectedDate = new Date(newDateVal);
+    const now = new Date();
+
+    // SÉCURITÉ : Vérification anti-futur
+    if (selectedDate > now) {
+        showToast("Impossible : Tu ne peux pas aller dans le futur ! 🚗⚡");
+        return; // On arrête tout ici
+    }
+
+    // A. Formatage
+    const displayDate = selectedDate.toLocaleDateString('fr-FR', { 
+        day: 'numeric', 
+        month: 'short', 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+
+    const isoDate = selectedDate.toISOString();
+
+    // B. Envoi Supabase
+    const { error } = await supabase
+        .from('workout_logs')
+        .update({ 
+            date: displayDate,
+            created_at: isoDate
+        })
+        .eq('id', sessionToEditDateId);
+
+    if (error) {
+        showToast("Erreur : " + error.message);
+    } else {
+        showToast("Date modifiée ! 🗓️");
+        document.getElementById('date-modal').classList.add('hidden');
+        await syncHistoryFromCloud();
+        renderHistory();
+    }
+}

@@ -393,18 +393,25 @@ export function renderHistory() {
 }
 
 function renderSessionCard(session) {
-    // Cette fonction génère le HTML d'une "carte" de séance dans l'historique
-    // Identique à ton design précédent mais encapsulé proprement
     return `
-    <div class="bg-white dark:bg-slate-850 rounded-[2rem] shadow-sm border border-slate-200 dark:border-slate-700 p-5 relative overflow-hidden">
+    <div class="bg-white dark:bg-slate-850 rounded-[2rem] shadow-sm border border-slate-200 dark:border-slate-700 p-5 relative overflow-hidden mb-4">
         <div class="flex justify-between items-start mb-4">
             <div>
                 <h3 class="font-black text-slate-800 dark:text-white text-lg leading-tight uppercase">${session.day}</h3>
-                <div class="text-xs text-slate-400 font-bold mt-1">${session.exercises.length} Exercices</div>
+                <div class="flex items-center gap-2 mt-1">
+                    <span class="text-xs text-slate-400 font-bold">${session.exercises.length} Exercices</span>
+                    <span class="text-[10px] text-slate-300">•</span>
+                    <span class="text-[10px] text-emerald-500 font-bold bg-emerald-50 dark:bg-emerald-900/20 px-1.5 rounded uppercase">${session.date}</span>
+                </div>
             </div>
-            <button onclick="deleteSession('${session.id}')" class="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-            </button>
+            <div class="flex gap-2">
+                <button onclick="openDateEditor('${session.id}', '${session.created_at}')" class="text-slate-400 hover:text-emerald-500 p-2 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-full transition-colors">
+                    ✏️
+                </button>
+                <button onclick="deleteSession('${session.id}')" class="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+            </div>
         </div>
 
         <div class="space-y-3">

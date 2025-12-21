@@ -474,5 +474,34 @@
     
         </div>
     </div>
+    <div id="date-modal" class="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/95 backdrop-blur-sm hidden fade-in">
+        <div class="bg-white dark:bg-slate-900 w-[85%] max-w-sm rounded-[2rem] p-6 shadow-2xl border border-white/10 flex flex-col items-center relative">
+            
+            <button onclick="document.getElementById('date-modal').classList.add('hidden')" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center">✕</button>
+    
+            <div class="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center text-2xl mb-4 shadow-sm">
+                🗓️
+            </div>
+    
+            <h3 class="text-xl font-black text-slate-800 dark:text-white mb-2">Changer la date</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-6 text-center max-w-[200px]">Sélectionne le moment exact où tu as réalisé cette séance.</p>
+            
+            <div class="relative w-full mb-6 group">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span class="text-slate-400">🕒</span>
+                </div>
+                <input 
+                    type="datetime-local" 
+                    id="new-session-date" 
+                    class="w-full bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white text-sm font-bold rounded-xl block pl-10 p-4 outline-none focus:border-emerald-500 transition-colors shadow-inner"
+                    style="color-scheme: light dark;" 
+                >
+            </div>
+            
+            <button onclick="saveDateChange()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all text-xs uppercase tracking-widest">
+                Confirmer la date
+            </button>
+        </div>
+    </div>
 </body>
 </html>
