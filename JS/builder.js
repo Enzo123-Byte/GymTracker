@@ -2,6 +2,7 @@ import { supabase } from './supabase.js';
 import { currentUser } from './state.js';
 import { workouts } from './config.js';
 import { showToast, openConfirmModal } from './ui.js';
+
 // --- VARIABLES LOCALES ---
 let libraryCache = []; // Cache pour ne pas recharger la DB à chaque clic
 let selectedExercises = new Set(); // Pour le Builder (Création)
@@ -16,6 +17,7 @@ export async function openBuilder() {
     
     // Si la librairie est vide, on la charge depuis Supabase
     if (libraryCache.length === 0) {
+        // On récupère aussi la colonne 'aliases' qu'on a créée
         const { data, error } = await supabase
             .from('exercises')
             .select('*')
@@ -28,6 +30,7 @@ export async function openBuilder() {
             document.getElementById('builder-list').innerHTML = `<p class="text-red-500 text-center">Erreur de chargement.</p>`;
         }
     } else {
+        // On rend tout visible au démarrage
         renderBuilderList();
     }
 }
@@ -44,16 +47,28 @@ export function renderBuilderList(listToRender = null) {
 
     container.innerHTML = list.map(ex => {
         const isSelected = selectedExercises.has(ex.id);
+        
+        // ⚡️ MAGIE ICI : On prépare les tags cachés pour la recherche
+        const aliases = ex.aliases || [];
+        const searchTags = aliases.join(" ").toLowerCase();
+
         return `
-        <div onclick="toggleBuilderSelection('${ex.id}')" class="flex items-center gap-4 p-3 mb-2 rounded-xl border transition-all cursor-pointer ${isSelected ? 'bg-emerald-50 border-emerald-500 dark:bg-emerald-900/20 dark:border-emerald-500' : 'bg-white dark:bg-slate-850 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800'}">
+        <div id="builder-item-${ex.id}" 
+             data-tags="${searchTags}" 
+             data-category="${ex.category}"
+             onclick="toggleBuilderSelection('${ex.id}')" 
+             class="flex items-center gap-4 p-3 mb-2 rounded-xl border transition-all cursor-pointer ${isSelected ? 'bg-emerald-50 border-emerald-500 dark:bg-emerald-900/20 dark:border-emerald-500' : 'bg-white dark:bg-slate-850 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800'}">
+            
             <div class="w-12 h-12 rounded-lg bg-white p-1 overflow-hidden border border-slate-100 flex-shrink-0">
                 <img src="${ex.img_url}" class="w-full h-full object-contain mix-blend-multiply" loading="lazy">
             </div>
+            
             <div class="flex-1">
                 <h4 class="font-bold text-sm text-slate-800 dark:text-white leading-tight">${ex.name}</h4>
                 <span class="text-[10px] text-slate-400 uppercase tracking-wide bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">${ex.category}</span>
             </div>
-            <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300 dark:border-slate-600'}">
+            
+            <div class="check-circle w-6 h-6 rounded-full border-2 flex items-center justify-center ${isSelected ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300 dark:border-slate-600'}">
                 ${isSelected ? '✓' : ''}
             </div>
         </div>`;
@@ -62,21 +77,40 @@ export function renderBuilderList(listToRender = null) {
     document.getElementById('builder-count').innerText = selectedExercises.size;
 }
 
+// 🚀 NOUVEAU FILTRE PUISSANT (DOM-BASED)
 export function filterBuilderList() {
-    const term = document.getElementById('builder-search').value.toLowerCase();
-    const category = document.getElementById('builder-category').value;
-    
-    const filtered = libraryCache.filter(ex => {
-        // 1. Filtre par texte (Nom)
-        const matchesText = ex.name.toLowerCase().includes(term);
-        
-        // 2. Filtre par catégorie (Si "ALL", on prend tout, sinon on vérifie l'égalité)
-        const matchesCategory = category === "ALL" || ex.category === category;
+    const searchInput = document.getElementById('builder-search');
+    const categoryInput = document.getElementById('builder-category');
+    const builderList = document.getElementById('builder-list');
 
-        return matchesText && matchesCategory;
-    });
+    if (!searchInput || !builderList) return;
+
+    const term = searchInput.value.toLowerCase().trim();
+    const category = categoryInput ? categoryInput.value : "ALL";
     
-    renderBuilderList(filtered);
+    // On travaille directement sur les éléments HTML pour la rapidité
+    const items = Array.from(builderList.children);
+
+    items.forEach(item => {
+        // 1. Recherche Texte (Nom + Tags cachés)
+        const name = item.querySelector('h4').textContent.toLowerCase();
+        const tags = item.dataset.tags || ""; // Les alias sont ici !
+        
+        const matchesText = name.includes(term) || tags.includes(term);
+
+        // 2. Recherche Catégorie
+        const itemCategory = item.dataset.category;
+        const matchesCategory = category === "ALL" || itemCategory === category;
+
+        // Affichage / Masquage
+        if (matchesText && matchesCategory) {
+            item.classList.remove('hidden');
+            item.style.display = ''; 
+        } else {
+            item.classList.add('hidden');
+            item.style.display = 'none';
+        }
+    });
 }
 
 export function toggleBuilderSelection(id) {
@@ -85,7 +119,26 @@ export function toggleBuilderSelection(id) {
     } else {
         selectedExercises.add(id);
     }
-    renderBuilderList();
+    
+    // OPTIMISATION : On met à jour juste l'élément cliqué sans tout recharger
+    // Cela permet de garder le filtre actif !
+    const item = document.getElementById(`builder-item-${id}`);
+    if (item) {
+        const isSelected = selectedExercises.has(id);
+        const checkCircle = item.querySelector('.check-circle');
+
+        if (isSelected) {
+            item.className = "flex items-center gap-4 p-3 mb-2 rounded-xl border transition-all cursor-pointer bg-emerald-50 border-emerald-500 dark:bg-emerald-900/20 dark:border-emerald-500";
+            checkCircle.className = "check-circle w-6 h-6 rounded-full border-2 flex items-center justify-center border-emerald-500 bg-emerald-500 text-white";
+            checkCircle.innerText = "✓";
+        } else {
+            item.className = "flex items-center gap-4 p-3 mb-2 rounded-xl border transition-all cursor-pointer bg-white dark:bg-slate-850 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800";
+            checkCircle.className = "check-circle w-6 h-6 rounded-full border-2 flex items-center justify-center border-slate-300 dark:border-slate-600";
+            checkCircle.innerText = "";
+        }
+    }
+    
+    document.getElementById('builder-count').innerText = selectedExercises.size;
 }
 
 export async function saveNewProgram() {
@@ -255,21 +308,50 @@ async function loadLibraryForSelector() {
 
 export function renderSelectorList(list) {
     const container = document.getElementById('selector-list');
-    container.innerHTML = list.map(ex => `
-        <div onclick="addExerciseToManager('${ex.id}')" class="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all">
-            <img src="${ex.img_url}" class="w-8 h-8 object-contain bg-white rounded p-0.5">
+    
+    container.innerHTML = list.map(ex => {
+        // On injecte les alias pour la recherche
+        const aliases = ex.aliases || [];
+        const searchTags = aliases.join(" ").toLowerCase();
+
+        return `
+        <div onclick="addExerciseToManager('${ex.id}')" 
+             data-tags="${searchTags}"
+             class="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all">
+            <img src="${ex.img_url}" class="w-16 h-16 object-contain bg-white rounded p-0.5">
             <div>
                 <div class="font-bold text-xs text-slate-800 dark:text-white">${ex.name}</div>
                 <div class="text-[9px] text-slate-400 uppercase">${ex.category}</div>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 export function filterSelectorList() {
-    const term = document.getElementById('selector-search').value.toLowerCase();
-    const filtered = libraryCache.filter(ex => ex.name.toLowerCase().includes(term));
-    renderSelectorList(filtered);
+    const searchInput = document.getElementById('selector-search');
+    const listContainer = document.getElementById('selector-list');
+
+    if (!searchInput || !listContainer) return;
+
+    const term = searchInput.value.toLowerCase().trim();
+    const items = Array.from(listContainer.children);
+
+    items.forEach(item => {
+        // Recherche dans le Nom (texte visible)
+        const nameDiv = item.querySelector('.font-bold'); // On cible le titre
+        const name = nameDiv ? nameDiv.textContent.toLowerCase() : "";
+        
+        // Recherche dans les Tags (cachés)
+        const tags = item.dataset.tags || "";
+
+        if (name.includes(term) || tags.includes(term)) {
+            item.classList.remove('hidden');
+            item.style.display = '';
+        } else {
+            item.classList.add('hidden');
+            item.style.display = 'none';
+        }
+    });
 }
 
 export function addExerciseToManager(exId) {
@@ -305,33 +387,44 @@ export function addExerciseToManager(exId) {
     list.scrollTop = list.scrollHeight;
 }
 
-export async function handleVisionSearch(input) {
+export async function handleVisionSearch(input, mode = 'builder') {
     const file = input.files[0];
     if (!file) return;
 
-    // 1. UI : Afficher le chargement
-    const loader = document.getElementById('vision-loading');
-    const searchInput = document.getElementById('builder-search');
+    // 1. Déterminer quelle barre viser selon le mode
+    let targetInputId = 'builder-search';
+    let targetFilterFn = filterBuilderList; // La fonction importée plus haut
+
+    if (mode === 'selector') {
+        targetInputId = 'selector-search';
+        targetFilterFn = filterSelectorList;
+    }
+
+    // 2. UI Loading
+    const loader = document.getElementById('vision-loading'); // Assure-toi que ce loader est global ou dupliqué
+    const searchInput = document.getElementById(targetInputId);
     
-    loader.classList.remove('hidden');
-    searchInput.value = "Analyse en cours...";
-    searchInput.disabled = true;
+    // Si on est dans le selecteur et qu'il n'y a pas de loader dédié, on ignore ou on en crée un.
+    if (loader) loader.classList.remove('hidden');
+    
+    if (searchInput) {
+        searchInput.value = "Analyse en cours...";
+        searchInput.disabled = true;
+    }
 
     try {
-        // 2. Conversion Image -> Base64
         const base64Image = await convertToBase64(file);
-
-        // 3. Appel API OpenAI (GPT-4o-mini)
         const exerciseName = await identifyExerciseWithAI(base64Image);
 
-        // 4. Résultat
-        if (exerciseName) {
-            searchInput.value = exerciseName.replace(/[".]/g, ''); // Nettoyage
-            showToast(`Trouvé : ${searchInput.value} 🎯`);
+        if (exerciseName && searchInput) {
+            const cleanedName = exerciseName.replace(/[".]/g, '');
+            searchInput.value = cleanedName;
+            showToast(`Trouvé : ${cleanedName} 🎯`);
             
-            // On déclenche le filtre existant
             searchInput.disabled = false;
-            filterBuilderList(); 
+            
+            // 3. On lance le bon filtre
+            targetFilterFn(); 
         } else {
             throw new Error("Aucun exercice reconnu.");
         }
@@ -339,15 +432,14 @@ export async function handleVisionSearch(input) {
     } catch (error) {
         console.error(error);
         showToast("Erreur Vision : " + error.message);
-        searchInput.value = "";
+        if (searchInput) searchInput.value = "";
     } finally {
-        loader.classList.add('hidden');
-        searchInput.disabled = false;
-        input.value = ""; // Reset pour pouvoir reprendre la même photo
+        if (loader) loader.classList.add('hidden');
+        if (searchInput) searchInput.disabled = false;
+        input.value = ""; 
     }
 }
 
-// Fonction Helper : Fichier -> Base64
 function convertToBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -357,13 +449,9 @@ function convertToBase64(file) {
     });
 }
 
-// js/builder.js (En bas)
-
-// Fonction Helper : Appel Sécurisé via Supabase Edge Function
 async function identifyExerciseWithAI(base64Image) {
-    console.log("Envoi de l'image à Supabase..."); // Petit log pour débugger
+    console.log("Envoi de l'image à Supabase...");
 
-    // On appelle la fonction "identify-exercise" qu'on a déployée
     const { data, error } = await supabase.functions.invoke('identify-exercise', {
         body: { base64Image: base64Image }
     });
@@ -373,7 +461,26 @@ async function identifyExerciseWithAI(base64Image) {
         throw new Error("Erreur serveur lors de l'analyse.");
     }
     
-    // data contient la réponse JSON { exerciseName: "..." }
-    const result = data.exerciseName ? data.exerciseName.trim() : null;
-    return result === "Inconnu" ? null : result;
+    return data.exerciseName ? data.exerciseName.trim() : null;
 }
+
+// ==========================================
+// 5. INITIALISATION AUTOMATIQUE
+// ==========================================
+
+setTimeout(() => {
+    // 1. Builder
+    const builderInput = document.getElementById('builder-search');
+    if (builderInput) {
+        builderInput.removeEventListener('input', filterBuilderList);
+        builderInput.addEventListener('input', filterBuilderList);
+    }
+
+    // 2. Selector (AJOUT)
+    const selectorInput = document.getElementById('selector-search');
+    if (selectorInput) {
+        console.log("✅ Barre de recherche 'Selector' connectée.");
+        selectorInput.removeEventListener('input', filterSelectorList);
+        selectorInput.addEventListener('input', filterSelectorList);
+    }
+}, 500);
