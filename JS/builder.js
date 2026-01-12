@@ -197,14 +197,20 @@ export async function openProgramManager(programName) {
 
     if(exercisesDetails) {
         exercisesDetails.forEach((ex, idx) => {
+            // J'ai ajouté l'icône de poignée (drag-handle) à gauche 👇
             container.innerHTML += `
-            <div class="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 flex flex-col gap-3" id="mgr-item-${idx}">
-                <div class="flex justify-between items-center">
-                    <span class="font-bold text-sm text-slate-700 dark:text-slate-200 truncate w-[80%]">${ex.name}</span>
-                    <button onclick="removeManagerItem(${idx})" class="text-red-400 text-xs font-bold hover:text-red-600">✕</button>
+            <div class="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 flex flex-col gap-3 group" id="mgr-item-${idx}">
+                <div class="flex justify-between items-center gap-2">
+                    
+                    <div class="drag-handle cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-emerald-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    </div>
+
+                    <span class="font-bold text-sm text-slate-700 dark:text-slate-200 truncate flex-1">${ex.name}</span>
+                    
+                    <button onclick="removeManagerItem(${idx})" class="text-red-400 text-xs font-bold hover:text-red-600 p-1">✕</button>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
+                <div class="grid grid-cols-2 gap-3 pl-8"> <div>
                         <label class="text-[9px] text-slate-400 uppercase">Séries</label>
                         <input type="number" class="mgr-sets w-full bg-white dark:bg-slate-900 rounded-lg p-1.5 text-center font-bold text-sm outline-none border focus:border-emerald-500" value="${ex.sets}">
                     </div>
@@ -220,6 +226,16 @@ export async function openProgramManager(programName) {
     }
 
     document.getElementById('manager-modal').classList.remove('hidden');
+
+    // --- ACTIVATION DU DRAG & DROP ---
+    // On vérifie si une instance existe déjà pour éviter les bugs, sinon on crée
+    if (container._sortable) container._sortable.destroy();
+    
+    container._sortable = new Sortable(container, {
+        animation: 150,           // Animation fluide (ms)
+        handle: '.drag-handle',   // On ne peut déplacer qu'en attrapant la poignée (meilleur pour le mobile)
+        ghostClass: 'bg-emerald-50', // Couleur de l'élément fantôme pendant le déplacement
+    });
 }
 
 export function removeManagerItem(idx) {
@@ -359,14 +375,18 @@ export function addExerciseToManager(exId) {
     if (!ex) return;
 
     const tempIdx = Date.now(); 
-
     const html = `
         <div class="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 flex flex-col gap-3 animate-pulse" id="mgr-item-${tempIdx}">
-            <div class="flex justify-between items-center">
-                <span class="font-bold text-sm text-slate-700 dark:text-slate-200 truncate w-[80%]">${ex.name}</span>
-                <button onclick="removeManagerItem(${tempIdx})" class="text-red-400 text-xs font-bold hover:text-red-600">✕</button>
+            <div class="flex justify-between items-center gap-2">
+                
+                <div class="drag-handle cursor-grab active:cursor-grabbing p-0.5 text-slate-400 hover:text-emerald-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </div>
+
+                <span class="font-bold text-sm text-slate-700 dark:text-slate-200 truncate flex-1">${ex.name}</span>
+                <button onclick="removeManagerItem(${tempIdx})" class="text-red-400 text-xs font-bold hover:text-red-600 p-1">✕</button>
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-2 gap-3 pl-8">
                 <div>
                     <label class="text-[9px] text-slate-400 uppercase">Séries</label>
                     <input type="number" class="mgr-sets w-full bg-white dark:bg-slate-900 rounded-lg p-1.5 text-center font-bold text-sm outline-none border focus:border-emerald-500" value="3">
