@@ -13,7 +13,7 @@ import { handleVisionSearch } from './builder.js';
 import { 
     openBuilder, toggleBuilderSelection, filterBuilderList, saveNewProgram,
     openProgramManager, removeManagerItem, saveManagerChanges, deleteCustomProgram,
-    openExerciseSelector, filterSelectorList, addExerciseToManager
+    openExerciseSelector, filterSelectorList, addExerciseToManager,shareProgramme,openFriendSelector,handleShareClick
 } from './builder.js';
 
 // --- RENDRE LES FONCTIONS ACCESSIBLES (WINDOW) ---
@@ -80,6 +80,9 @@ window.deleteCustomProgram = deleteCustomProgram;
 window.openExerciseSelector = openExerciseSelector;
 window.filterSelectorList = filterSelectorList;
 window.addExerciseToManager = addExerciseToManager;
+window.shareProgramme =shareProgramme;
+window.openFriendSelector=openFriendSelector;
+window.handleShareClick=handleShareClick;
 
 // Onboarding & Generator
 window.openOnboarding = openOnboarding;

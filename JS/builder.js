@@ -1,6 +1,6 @@
 import { supabase } from './supabase.js';
 import { currentUser } from './state.js';
-import { workouts } from './config.js';
+import { workouts} from './config.js';
 import { showToast, openConfirmModal } from './ui.js';
 
 // --- VARIABLES LOCALES ---
@@ -236,6 +236,207 @@ export async function openProgramManager(programName) {
         handle: '.drag-handle',   // On ne peut déplacer qu'en attrapant la poignée (meilleur pour le mobile)
         ghostClass: 'bg-emerald-50', // Couleur de l'élément fantôme pendant le déplacement
     });
+}
+
+export async function shareProgramme(programName){
+    const { data, error } = await supabase
+        .from('user_programs')
+        .select('id')
+        .eq('user_id', currentUser.id)
+        .eq('name', programName)
+        .single();
+
+    if (error || !data) {
+        alert("Erreur: Impossible de charger les données du programme.");
+        return;
+    }
+    if (typeof window.openFriendSelector === 'function') {
+        window.openFriendSelector(data.id);
+    } else {
+        openFriendSelector(data.id);
+    }
+}   
+
+const DOM_IDS = {
+    MODAL: 'friend-modal',
+    LIST: 'friend-list',
+    SEARCH: 'friend-search'
+};
+
+// État local du module (State)
+let state = {
+    currentProgramId: null,
+    friendsCache: []
+};
+
+// --- COUCHE SERVICE (Appels API) ---
+
+/**
+ * Récupère la liste des amis depuis la DB.
+ * @returns {Promise<Array>} Liste d'amis ou tableau vide en cas d'erreur.
+ */
+async function fetchFriendsService() {
+    const { data, error } = await supabase.rpc('get_my_friends_v3');
+    if (error) {
+        console.error("[FriendService] Erreur fetch:", error);
+        throw new Error("Impossible de charger la liste d'amis.");
+    }
+    return data || [];
+}
+
+/**
+ * Exécute le partage du programme.
+ * @param {string} programId 
+ * @param {string} friendId 
+ */
+async function shareProgramService(programId, friendId) {
+    const { data, error } = await supabase.rpc('share_program_v3', {
+        p_program_id: programId,
+        p_friend_id: friendId
+    });
+
+    if (error || (data && !data.success)) {
+        throw new Error(error?.message || data?.message || "Erreur inconnue");
+    }
+    return data;
+}
+
+// --- COUCHE VUE (Rendu HTML) ---
+
+/**
+ * Génère le HTML d'une ligne "Ami".
+ * @param {Object} friend 
+ * @returns {string} HTML string
+ */
+function createFriendItemHTML(friend) {
+    const fullName = `${friend.first_name || ''} ${friend.last_name || ''}`.trim() || 'Ami sans nom';
+    const initials = fullName.substring(0, 2).toUpperCase();
+    const avatar = friend.avatar_url 
+        ? `<img src="${friend.avatar_url}" class="w-full h-full object-cover">` 
+        : initials;
+
+    return `
+    <div class="flex items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors border border-transparent hover:border-slate-100 group">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 flex items-center justify-center font-bold text-xs overflow-hidden border border-indigo-100 dark:border-indigo-800">
+                ${avatar}
+            </div>
+            <div class="flex flex-col">
+                <span class="font-bold text-sm text-slate-700 dark:text-slate-200">${fullName}</span>
+            </div>
+        </div>
+        
+        <button onclick="handleShareClick(this, '${friend.friend_id}')" 
+                class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-400 hover:text-white hover:bg-emerald-500 hover:border-emerald-500 p-2 rounded-lg transition-all shadow-sm active:scale-95">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        </button>
+    </div>`;
+}
+
+/**
+ * Met à jour le DOM avec la liste des amis.
+ * @param {Array} friendsList 
+ */
+function renderFriendsList(friendsList) {
+    const container = document.getElementById(DOM_IDS.LIST);
+    if (!container) return;
+
+    if (friendsList.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-10 opacity-50">
+                <p class="text-3xl mb-2">🔍</p>
+                <p class="text-sm font-medium">Aucun ami trouvé.</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = friendsList.map(createFriendItemHTML).join('');
+}
+
+// --- CONTROLLERS (Logique métier) ---
+
+/**
+ * Point d'entrée principal : Ouvre la modale et initialise les données.
+ * @param {string} programId 
+ */
+export async function openFriendSelector(programId) {
+    state.currentProgramId = programId; // Mise à jour du state
+    
+    const modal = document.getElementById(DOM_IDS.MODAL);
+    const searchInput = document.getElementById(DOM_IDS.SEARCH);
+    const listContainer = document.getElementById(DOM_IDS.LIST);
+
+    if (!modal) return console.error("Modal introuvable dans le DOM");
+
+    // 1. Reset UI
+    modal.classList.remove('hidden');
+    if (searchInput) {
+        searchInput.value = "";
+        searchInput.oninput = handleSearchInput; // Attachement de l'event listener
+    }
+    
+    // 2. Loading State
+    if (listContainer) {
+        listContainer.innerHTML = `<div class="flex justify-center py-8"><div class="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-500"></div></div>`;
+    }
+
+    // 3. Fetch Data & Render
+    try {
+        state.friendsCache = await fetchFriendsService();
+        renderFriendsList(state.friendsCache);
+    } catch (err) {
+        if (listContainer) listContainer.innerHTML = `<p class="text-red-400 text-center text-sm py-4">${err.message}</p>`;
+    }
+}
+
+/**
+ * Gère la recherche en temps réel (Filtrage client-side).
+ * @param {Event} event 
+ */
+function handleSearchInput(event) {
+    const term = event.target.value.toLowerCase();
+    
+    const filteredFriends = state.friendsCache.filter(friend => {
+        const fullName = `${friend.first_name} ${friend.last_name}`.toLowerCase();
+        return fullName.includes(term);
+    });
+
+    renderFriendsList(filteredFriends);
+}
+
+/**
+ * Gère le clic sur le bouton "Envoyer".
+ * Gère les états de chargement, succès et erreur du bouton.
+ * @param {HTMLElement} btnElement 
+ * @param {string} friendId 
+ */
+export async function handleShareClick(btnElement, friendId) {
+    if (!state.currentProgramId) return alert("Erreur: Aucun programme sélectionné.");
+
+    // UI: Loading State
+    const originalContent = btnElement.innerHTML;
+    btnElement.innerHTML = `<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>`;
+    btnElement.disabled = true;
+
+    try {
+        await shareProgramService(state.currentProgramId, friendId);
+
+        // UI: Success State
+        btnElement.className = "bg-emerald-500 text-white p-2 rounded-lg shadow-md transform scale-105 transition-all";
+        btnElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
+        // Fermeture automatique après délai
+        setTimeout(() => {
+            document.getElementById(DOM_IDS.MODAL)?.classList.add('hidden');
+        }, 1200);
+
+    } catch (error) {
+        // UI: Error State
+        console.error(error);
+        alert(error.message);
+        btnElement.innerHTML = originalContent; // Reset
+        btnElement.disabled = false;
+    }
 }
 
 export function removeManagerItem(idx) {

@@ -1,7 +1,11 @@
 import { workouts, BADGES_CONFIG } from './config.js';
 import { currentTab, getActiveSession, getEditSessionId, getHistory,saveActiveSession} from './state.js'; 
 import { calculate1RM, getLastPerf, getDaysInMonth, getFirstDayOfMonth } from './utils.js';
-
+import { getLastPerfString } from './logic.js';
+const ICONS = {
+    sun: `<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 transition-transform duration-500 rotate-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`,
+    moon: `<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 transition-transform duration-500 -rotate-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
+};
 // --- VARIABLES LOCALES POUR LE CALENDRIER ---
 let currentCalendarDate = new Date();
 let selectedDateKey = null; // Format "JJ/MM/AAAA"
@@ -19,18 +23,23 @@ window.selectDate = (dateKey) => {
     renderHistory();
 };
 
-// --- GESTION DU THEME ---
+// --- GESTION DU THEME --
 export function initTheme() {
+    // 1. On récupère la préférence
     const savedTheme = localStorage.getItem('theme');
     const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const isDark = savedTheme === 'dark' || (!savedTheme && systemDark);
+    
+    // 2. On cible l'élément
     const themeIcon = document.getElementById('theme-icon');
 
-    if (savedTheme === 'dark' || (!savedTheme && systemDark)) {
+    // 3. On applique la classe ET l'icône
+    if (isDark) {
         document.documentElement.classList.add('dark');
-        if(themeIcon) themeIcon.innerText = '🌙';
+        if (themeIcon) themeIcon.innerHTML = ICONS.moon; // <--- C'est ça qui manquait !
     } else {
         document.documentElement.classList.remove('dark');
-        if(themeIcon) themeIcon.innerText = '☀️';
+        if (themeIcon) themeIcon.innerHTML = ICONS.sun;
     }
 }
 
@@ -40,7 +49,11 @@ export function toggleTheme() {
     localStorage.setItem('theme', isDark ? 'dark' : 'light');
     
     const themeIcon = document.getElementById('theme-icon');
-    if(themeIcon) themeIcon.innerText = isDark ? '🌙' : '☀️';
+    
+    // C'est ici que le changement visuel se fait
+    if (themeIcon) {
+        themeIcon.innerHTML = isDark ? ICONS.moon : ICONS.sun;
+    }
 }
 
 // --- GESTION DES ONGLETS ---
@@ -89,13 +102,11 @@ export function renderTabs() {
 export function renderWorkout(day) {
     const container = document.getElementById('main-container');
     
-    // Si pas de jour spécifié, on prend le premier disponible (sécurité)
+    // Sécurités basiques
     if (!day) {
         const keys = Object.keys(workouts);
         day = keys.length > 0 ? keys[0] : null;
     }
-    
-    // Si toujours rien (aucun programme), on arrête
     if (!day) {
         container.innerHTML = `<div class="text-center text-slate-400 mt-10">Aucun programme trouvé.</div>`;
         return;
@@ -105,13 +116,18 @@ export function renderWorkout(day) {
     const activeData = getActiveSession();
     const isEditing = getEditSessionId();
 
-    // 1. BOUTON MODIFIER LE PROGRAMME (S'affiche TOUJOURS maintenant)
+    // 1. BOUTONS HEADER (Partager / Modifier)
     const configHtml = `
-    <div class="flex justify-end mb-4">
+    <div class="flex justify-between mb-4">
+        <button onclick="shareProgramme('${day}')" class="text-xs font-bold text-slate-400 hover:text-emerald-500 flex items-center gap-1 transition-colors bg-white dark:bg-slate-800 px-3 py-1.5 rounded-full shadow-sm border border-slate-100 dark:border-slate-700">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>   
+            Partager
+        </button>    
         <button onclick="openProgramManager('${day}')" class="text-xs font-bold text-slate-400 hover:text-emerald-500 flex items-center gap-1 transition-colors bg-white dark:bg-slate-800 px-3 py-1.5 rounded-full shadow-sm border border-slate-100 dark:border-slate-700">
-            <span>⚙️</span> Modifier le programme
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            Modifier
         </button>
-    </div>`;
+    </div>`
 
     if (!exercises || exercises.length === 0) {
         container.innerHTML = configHtml + `<div class="text-center text-slate-400 mt-10">Ce programme est vide. Ajoute des exercices !</div>`;
@@ -120,21 +136,16 @@ export function renderWorkout(day) {
 
     let html = exercises.map((ex, index) => {
         let seriesData = activeData[ex.id]?.series || [];
-        
-        // 2. INITIALISATION INTELLIGENTE DES SÉRIES
         const targetSets = parseInt(ex.sets) || 3;
         
-        // Détection "Fantôme" (1 seule série vide alors qu'on en veut plus)
+        // Détection "Fantôme"
         const isGhostData = seriesData.length === 1 && 
                             (seriesData[0].reps === "" || seriesData[0].reps === null) && 
                             (seriesData[0].weight === "" || seriesData[0].weight === null) &&
                             targetSets > 1;
 
-        // Si vide ou fantôme -> On génère les lignes
         if (seriesData.length === 0 || isGhostData) {
             seriesData = Array(targetSets).fill().map(() => ({ reps: "", weight: "" }));
-            
-            // Sauvegarde immédiate pour la logique
             if (!activeData[ex.id]) activeData[ex.id] = {};
             activeData[ex.id].series = seriesData;
             activeData[ex.id].note = activeData[ex.id].note || "";
@@ -145,21 +156,10 @@ export function renderWorkout(day) {
         const allSetsDone = seriesData.every(s => s.reps && s.reps.toString().trim() !== "" && s.weight && s.weight.toString().trim() !== "");
         const isDone = seriesData.length > 0 && allSetsDone;
 
-        // 3. RÉCUPÉRATION DERNIÈRE PERF
-        let lastPerfText = "✨ Première séance";
-        if (typeof getLastPerf === 'function') {
-            const lastPerfData = getLastPerf(ex.id);
-            if (lastPerfData && lastPerfData.series && lastPerfData.series.length > 0) {
-                const bestSet = lastPerfData.series.find(s => s.reps && s.weight);
-                if (bestSet) lastPerfText = `Dernier : ${bestSet.reps} x ${bestSet.weight}kg`;
-            }
-        }
-        const isRecord = lastPerfText.includes('Dernier');
-        const perfStyle = isRecord 
-            ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-md shadow-sm" 
-            : "text-slate-400";
+        // --- ICI : ON A SUPPRIMÉ L'ANCIENNE LOGIQUE DE PERF ---
+        // On prépare juste l'affichage HTML
 
-        // 4. CALCUL 1RM INITIAL
+        // CALCUL 1RM INITIAL
         let best1RM = 0;
         seriesData.forEach(s => {
             const r = parseInt(s.reps);
@@ -170,13 +170,13 @@ export function renderWorkout(day) {
             }
         });
 
-        // 5. IMAGE (GIF)
+        // IMAGE
         const imgHtml = ex.img ? 
             `<div class="w-full h-56 bg-white rounded-xl overflow-hidden mb-5 border border-slate-100 dark:border-slate-700 relative group">
                 <img src="${ex.img}" alt="${ex.name}" class="w-full h-full object-contain mix-blend-multiply" onerror="this.style.display='none'">
              </div>` : '';
 
-        // 6. GÉNÉRATION DES LIGNES (INPUTS)
+        // GÉNÉRATION DES LIGNES (INPUTS)
         let rowsHtml = seriesData.map((s, i) => {
             const isSetDone = s.reps && s.reps.toString().trim() !== "" && s.weight && s.weight.toString().trim() !== "";
             const circleColor = isSetDone ? "bg-emerald-500 text-white border-emerald-500" : "bg-slate-100 dark:bg-slate-700 text-slate-400 border-transparent";
@@ -186,40 +186,37 @@ export function renderWorkout(day) {
                 <div id="circle-${ex.id}-${i}" class="w-8 h-8 rounded-full border-2 ${circleColor} text-sm flex items-center justify-center font-bold transition-colors duration-300">
                     ${i + 1}
                 </div>
-                
                 <input type="tel" placeholder="Reps" value="${s.reps || ''}" 
                     class="js-reps bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-center font-bold text-lg text-slate-800 dark:text-white outline-none focus:border-emerald-500 transition-colors w-full min-w-0"
                     oninput="updateSet('${ex.id}', ${i}, 'reps', this.value)">
-                
                 <input type="tel" placeholder="Kg" value="${s.weight || ''}" 
                     class="js-weight bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-center font-bold text-lg text-slate-800 dark:text-white outline-none focus:border-emerald-500 transition-colors w-full min-w-0"
                     oninput="updateSet('${ex.id}', ${i}, 'weight', this.value)">
-                
                 ${i > 0 ? `<button onclick="removeSet('${ex.id}', ${i})" class="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 transition-colors">✕</button>` : '<div class="w-8"></div>'} 
             </div>`;
         }).join('');
 
-        // 7. RENDU FINAL DE LA CARTE
+        // RENDU FINAL DE LA CARTE
         return `
         <div id="card-${ex.id}" class="bg-white dark:bg-slate-850 rounded-[2rem] shadow-lg p-5 mb-8 border border-slate-100 dark:border-slate-700 relative transition-all ${isDone ? 'ring-2 ring-emerald-400 ring-offset-2 dark:ring-offset-slate-900' : ''}">
 
-        <div class="flex flex-col mb-4 relative">
-            <div class="absolute top-0 right-0 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700 px-2.5 py-2 rounded-md text-[10px] font-black uppercase tracking-wide shadow-sm">
-                Obj : ${ex.sets} x ${ex.reps}
-             </div>
+            <div class="flex flex-col mb-4 relative">
+                <div class="absolute top-0 right-0 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700 px-2.5 py-2 rounded-md text-[10px] font-black uppercase tracking-wide shadow-sm">
+                    Obj : ${ex.sets} x ${ex.reps}
+                </div>
 
-            <div class="w-[70%] mb-2" onclick="openAnalytics('${ex.id}', '${ex.name.replace(/'/g, "\\'")}')">
-                <h3 class="font-black text-xl text-slate-800 dark:text-white leading-tight cursor-pointer hover:text-emerald-500 transition-colors flex items-center gap-2">
-                    ${ex.name}
-                </h3>
+                <div class="w-[70%] mb-2" onclick="openAnalytics('${ex.id}', '${ex.name.replace(/'/g, "\\'")}')">
+                    <h3 class="font-black text-xl text-slate-800 dark:text-white leading-tight cursor-pointer hover:text-emerald-500 transition-colors flex items-center gap-2">
+                        ${ex.name}
+                    </h3>
+                </div>
+        
+                <div class="flex items-center">
+                     <span id="badge-perf-${ex.id}" class="text-[10px] font-bold uppercase tracking-widest text-slate-400 inline-block">
+                        <span id="last-perf-${ex.id}" class="italic opacity-50">Chargement...</span>
+                     </span>
+                </div>
             </div>
-    
-            <div class="flex items-center">
-                 <span class="text-[10px] font-bold uppercase tracking-widest ${perfStyle} inline-block">
-                    ${isRecord ? '⚡️' : '✨'} ${lastPerfText}
-                 </span>
-            </div>
-        </div>
 
             ${imgHtml}
 
@@ -263,6 +260,41 @@ export function renderWorkout(day) {
 
     container.innerHTML = configHtml + html;
     updateProgressBar();
+
+// ===============================================
+    // 4. CHARGEMENT ASYNCHRONE DES PERFS ⚡️ (VERSION PRO SVG)
+    // ===============================================
+    const perfPlaceholders = document.querySelectorAll('[id^="last-perf-"]');
+
+    // Définition des icônes SVG
+    const iconBolt = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 inline-block mr-1 -mt-0.5" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>`;
+    
+    const iconStar = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 inline-block mr-1 -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>`;
+
+    perfPlaceholders.forEach(async (span) => {
+        const exId = span.id.replace('last-perf-', '');
+        
+        // Appel à la base de données
+        const text = await getLastPerfString(exId);
+        
+        span.classList.remove('italic', 'opacity-50');
+
+        // SI une perf existe (contient 'x', ex: 100kg x 8)
+        if (text && text.includes('x')) {
+            const badge = document.getElementById(`badge-perf-${exId}`);
+            if (badge) {
+                // Style Vert "Pro"
+                badge.className = "text-[10px] font-bold uppercase tracking-widest bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-md shadow-sm inline-flex items-center";
+                
+                // On injecte l'icône ÉCLAIR + le texte
+                span.innerHTML = `${iconBolt} ${text}`;
+            }
+        } else {
+            // Sinon (Pas d'historique)
+            // On injecte l'icône ÉTOILE + le texte
+            span.innerHTML = `${iconStar} ${text}`;
+        }
+    });
 }
 
 // --- AFFICHAGE HISTORIQUE ---

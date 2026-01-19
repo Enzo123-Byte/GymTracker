@@ -1,5 +1,5 @@
 import { getActiveSession, saveActiveSession, currentUser, getHistory, getEditSessionId, clearEditSessionId, setEditSessionId, setCurrentTab } from './state.js';
-import { workouts } from './config.js';
+import { workouts} from './config.js';
 import { supabase } from './supabase.js';
 import { calculate1RM, toggleTimer, resetTimer} from './utils.js';
 import { renderHistory, renderWorkout, renderTabs, showToast, updateProgressBar, update1RMDisplay, openConfirmModal } from './ui.js';
@@ -292,4 +292,31 @@ export function getExerciseHistoryData(exerciseId) {
     });
 
     return dataPoints;
+}
+
+/**
+ * Récupère la meilleure série de la dernière séance validée via SQL
+ */
+export async function getLastPerfString(exerciseId) {
+    // Appel RPC vers Supabase
+    const { data, error } = await supabase.rpc('get_last_exercise_performance', {
+        p_exercise_id: exerciseId
+    });
+
+    // Gestion des cas vides
+    if (error || !data || !Array.isArray(data) || data.length === 0) {
+        return "Pas d'historique";
+    }
+
+    // data est un tableau de séries : [{reps: "10", weight: "80"}, ...]
+    
+    // STRATÉGIE : On affiche la série la plus lourde de la séance précédente
+    // On trie par poids décroissant
+    const bestSet = data.sort((a, b) => parseFloat(b.weight) - parseFloat(a.weight))[0];
+
+    if (bestSet && bestSet.weight && bestSet.reps) {
+        return `Dernière : ${bestSet.reps} x ${bestSet.weight} Kg`;
+    }
+
+    return "Données incomplètes";
 }

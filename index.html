@@ -43,10 +43,17 @@
 
                 <div class="flex items-center gap-2.5">
                     <button onclick="toggleTheme()" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-yellow-400 flex items-center justify-center transition-colors">
-                        <span id="theme-icon">☀️</span>
+                        <span id="theme-icon" class="flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                        </span>
                     </button>
-                    <button onclick="openSocialModal()" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-emerald-400 flex items-center justify-center transition-colors">
-                        👥
+                    <button onclick="openSocialModal()" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-emerald-400 flex items-center justify-center transition-colors hover:bg-emerald-50 dark:hover:bg-slate-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
                     </button>
                     <button onclick="handleLogout()" class="w-8 h-8 rounded-full bg-red-50 dark:bg-red-900/20 text-red-500 flex items-center justify-center transition-colors hover:bg-red-100">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
@@ -576,5 +583,31 @@
     
         </div>
     </div>
+    <div id="friend-modal" class="fixed inset-0 z-[200] bg-slate-900/95 backdrop-blur-sm hidden flex items-center justify-center fade-in transition-all duration-300">
+        <div class="bg-white dark:bg-slate-900 w-[90%] max-w-sm rounded-2xl p-4 shadow-2xl border border-white/10 flex flex-col max-h-[60vh]">
+            
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                    Envoyer à...
+                </h3>
+                <button onclick="document.getElementById('friend-modal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-red-500 flex items-center justify-center transition-colors">
+                    ✕
+                </button>
+            </div>
+    
+            <div class="relative mb-4">
+                <span class="absolute left-3 top-2.5 text-slate-400 text-xs">🔍</span>
+                <input type="text" id="friend-search" placeholder="Rechercher..." class="w-full bg-slate-50 dark:bg-slate-800 rounded-xl py-2.5 pl-9 pr-3 text-sm font-bold outline-none border border-slate-200 dark:border-slate-700 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-800 dark:text-white placeholder-slate-400 transition-all">
+            </div>
+    
+            <div id="friend-list" class="flex-1 overflow-y-auto space-y-2 min-h-[150px] pr-1 custom-scrollbar">
+                <div class="flex flex-col items-center justify-center h-32 opacity-50">
+                    <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-500 mb-2"></div>
+                    <p class="text-xs">Chargement...</p>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
+
